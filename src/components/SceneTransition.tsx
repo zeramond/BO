@@ -103,7 +103,7 @@ export default function SceneTransition({
 
   return (
     <section
-    id = "experience"
+      id = "experience"
       ref={sectionRef}
       className="pointer-events-none relative"
       style={{
