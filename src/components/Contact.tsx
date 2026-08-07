@@ -71,9 +71,14 @@ export default function Contact() {
   Make a Reservation
 </a>
 
-          <button className="rounded-full border border-white/40 bg-black/20 px-8 py-4 font-semibold text-white backdrop-blur-sm transition duration-300 hover:border-white hover:bg-white hover:text-black">
-            Get Directions
-          </button>
+          <a
+  href="https://maps.app.goo.gl/fBZoQBFcasWKdwHo9"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="rounded-full border border-white/40 bg-black/20 px-8 py-4 font-semibold text-white backdrop-blur-sm transition duration-300 hover:border-white hover:bg-white hover:text-black"
+>
+  Get Directions
+</a>
         </div>
 
         <div className="mt-24 border-t border-white/15 pt-8">
