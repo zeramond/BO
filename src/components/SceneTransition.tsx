@@ -7,144 +7,153 @@ import {
   useRef,
   useState,
 } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 type SceneTransitionProps = {
   children: ReactNode;
 };
+
+const SCENE_HEIGHT = 160;
+const INTRO_HOLD = 0.65;
 
 export default function SceneTransition({
   children,
 }: SceneTransitionProps) {
   const scenes = Children.toArray(children);
 
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [nextIndex, setNextIndex] = useState<number | null>(null);
+  const sectionRef = useRef<HTMLElement>(null);
 
-  const triggerRefs = useRef<(HTMLDivElement | null)[]>([]);
+  /*
+   * -1 means:
+   * keep showing the Hero underneath.
+   */
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   useEffect(() => {
-    const observers: IntersectionObserver[] = [];
+    const handleScroll = () => {
+      const section = sectionRef.current;
 
-    triggerRefs.current.forEach((trigger, index) => {
-      if (!trigger) return;
+      if (!section) return;
 
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (
-            entry.isIntersecting &&
-            activeIndex === index &&
-            nextIndex === null
-          ) {
-            setNextIndex(index + 1);
+      const rect = section.getBoundingClientRect();
 
-            setTimeout(() => {
-              setActiveIndex(index + 1);
-              setNextIndex(null);
-            }, 1500);
+      const distanceIntoSection = Math.max(0, -rect.top);
 
-            observer.disconnect();
-          }
-        },
-        {
-          threshold: 0,
-        }
+      const scrollableDistance =
+        section.offsetHeight - window.innerHeight;
+
+      /*
+       * Keep the Hero visible for the beginning
+       * of the experience.
+       */
+      const introDistance =
+        window.innerHeight * INTRO_HOLD;
+
+      if (distanceIntoSection < introDistance) {
+        setActiveIndex(-1);
+        return;
+      }
+
+      /*
+       * After the Hero hold,
+       * divide the remaining scroll distance
+       * between all venue scenes.
+       */
+      const sceneDistance =
+        scrollableDistance - introDistance;
+
+      if (sceneDistance <= 0) return;
+
+      const progress = Math.min(
+        Math.max(
+          (distanceIntoSection - introDistance) /
+            sceneDistance,
+          0
+        ),
+        0.999999
       );
 
-      observer.observe(trigger);
-      observers.push(observer);
+      const newIndex = Math.min(
+        Math.floor(progress * scenes.length),
+        scenes.length - 1
+      );
+
+      setActiveIndex((currentIndex) => {
+        if (currentIndex === newIndex) {
+          return currentIndex;
+        }
+
+        return newIndex;
+      });
+    };
+
+    window.addEventListener("scroll", handleScroll, {
+      passive: true,
     });
 
+    window.addEventListener("resize", handleScroll);
+
+    handleScroll();
+
     return () => {
-      observers.forEach((observer) => observer.disconnect());
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
     };
-  }, [activeIndex, nextIndex]);
-
-  const currentScene = scenes[activeIndex];
-
-  const nextScene =
-    nextIndex !== null
-      ? scenes[nextIndex]
-      : null;
-
-  const totalHeight =
-    100 + Math.max(scenes.length - 1, 1) * 180;
+  }, [scenes.length]);
 
   return (
     <section
-      className="relative bg-black"
-      style={{ height: `${totalHeight}vh` }}
+    id = "experience"
+      ref={sectionRef}
+      className="pointer-events-none relative"
+      style={{
+        height: `${scenes.length * SCENE_HEIGHT}vh`,
+      }}
     >
-      <div className="sticky top-0 h-screen overflow-hidden bg-black">
+      <div
+  className={`sticky top-0 h-screen overflow-hidden ${
+    activeIndex >= 0
+      ? "pointer-events-auto"
+      : "pointer-events-none"
+  }`}
+>
+  {/* Prevent the Hero from bleeding through between scenes */}
+  {activeIndex >= 0 && (
+    <div className="absolute inset-0 bg-black" />
+  )}
 
-        {/* CURRENT SCENE */}
-        <motion.div
-          key={`scene-${activeIndex}`}
-          className="absolute inset-0 overflow-hidden"
-          animate={
-            nextIndex !== null
-              ? {
-                  opacity: 0,
-                  scale: 1.06,
-                  filter: "blur(8px)",
-                }
-              : {
-                  opacity: 1,
-                  scale: 1,
-                  filter: "blur(0px)",
-                }
-          }
-          transition={{
-            duration: 1.4,
-            ease: [0.22, 1, 0.36, 1],
-          }}
-        >
-          <div className="h-screen overflow-hidden">
-            {currentScene}
-          </div>
-        </motion.div>
-
-        {/* NEXT SCENE */}
-        {nextScene && (
-          <motion.div
-            key={`scene-${nextIndex}`}
-            className="absolute inset-0 overflow-hidden"
-            initial={{
-              opacity: 0,
-              scale: 1.08,
-              filter: "blur(16px)",
-            }}
-            animate={{
-              opacity: 1,
-              scale: 1,
-              filter: "blur(0px)",
-            }}
-            transition={{
-              duration: 1.5,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-          >
-            <div className="h-screen overflow-hidden">
-              {nextScene}
-            </div>
-          </motion.div>
-        )}
-
+  <AnimatePresence mode="sync">
+          {activeIndex >= 0 && (
+            <motion.div
+              key={`scene-${activeIndex}`}
+              className="absolute inset-0 overflow-hidden"
+              initial={{
+                opacity: 0,
+                scale: 1.08,
+                filter: "blur(16px)",
+              }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+                filter: "blur(0px)",
+              }}
+              exit={{
+                opacity: 0,
+                scale: 1.06,
+                filter: "blur(10px)",
+              }}
+              transition={{
+                duration: 1.5,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              <div className="h-screen overflow-hidden">
+                {scenes[activeIndex]}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-
-      {/* TRANSITION TRIGGERS */}
-      {scenes.slice(0, -1).map((_, index) => (
-        <div
-          key={index}
-          ref={(element) => {
-            triggerRefs.current[index] = element;
-          }}
-          className="absolute left-0 h-px w-full"
-          style={{
-            top: `${180 * (index + 1)}vh`,
-          }}
-        />
-      ))}
     </section>
   );
 }
