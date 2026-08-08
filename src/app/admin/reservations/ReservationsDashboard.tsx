@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  checkReservationCapacity,
+  getLanesRequired,
+} from "@/lib/reservations/capacity";
 
 type Status = "pending" | "confirmed" | "cancelled";
 
@@ -13,6 +17,7 @@ type Reservation = {
   phone: string;
   reservation_date: string;
   reservation_time: string;
+  duration_minutes: number;
   guests: number;
   occasion: string | null;
   notes: string | null;
@@ -57,72 +62,109 @@ const reservationTimes = [
   "1:00 AM",
   "1:30 AM",
 ];
+const reservationDurations = [
+  { label: "1 Hour", value: 60 },
+  { label: "1.5 Hours", value: 90 },
+  { label: "2 Hours", value: 120 },
+  { label: "2.5 Hours", value: 150 },
+  { label: "3 Hours", value: 180 },
+];
 
-export default function ReservationsDashboard({
-  initialReservations,
-}: Props) {
+export default function ReservationsDashboard({ initialReservations }: Props) {
   const router = useRouter();
 
-  const [reservations, setReservations] =
-    useState(initialReservations);
+  const [reservations, setReservations] = useState(initialReservations);
   useEffect(() => {
-  setReservations(initialReservations);
-}, [initialReservations]);
+    setReservations(initialReservations);
+  }, [initialReservations]);
 
-  const [filter, setFilter] = useState<
-    "all" | Status
-  >("all");
+  const [filter, setFilter] = useState<"all" | Status>("all");
 
-  const [updatingId, setUpdatingId] =
-    useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const [editingId, setEditingId] =
-    useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [editDate, setEditDate] = useState("");
   const [editTime, setEditTime] = useState("");
+  const [editDuration, setEditDuration] = useState(60);
 
   const filteredReservations = useMemo(() => {
     if (filter === "all") {
       return reservations;
     }
 
-    return reservations.filter(
-      (reservation) => reservation.status === filter
-    );
+    return reservations.filter((reservation) => reservation.status === filter);
   }, [filter, reservations]);
 
   const counts = {
     pending: reservations.filter(
-      (reservation) => reservation.status === "pending"
+      (reservation) => reservation.status === "pending",
     ).length,
 
     confirmed: reservations.filter(
-      (reservation) => reservation.status === "confirmed"
+      (reservation) => reservation.status === "confirmed",
     ).length,
 
     cancelled: reservations.filter(
-      (reservation) => reservation.status === "cancelled"
+      (reservation) => reservation.status === "cancelled",
     ).length,
   };
+  const confirmedReservations = reservations.filter(
+    (reservation) => reservation.status === "confirmed",
+  );
 
-  const updateStatus = async (
-    id: string,
-    status: Status
-  ) => {
+  const getCapacityInfo = (reservation: Reservation) => {
+    return checkReservationCapacity(
+      {
+        id: reservation.id,
+        reservation_date: reservation.reservation_date,
+        reservation_time: reservation.reservation_time,
+        duration_minutes: reservation.duration_minutes,
+        guests: reservation.guests,
+      },
+      confirmedReservations.map((confirmed) => ({
+        id: confirmed.id,
+        reservation_date: confirmed.reservation_date,
+        reservation_time: confirmed.reservation_time,
+        duration_minutes: confirmed.duration_minutes,
+        guests: confirmed.guests,
+      })),
+    );
+  };
+
+  const updateStatus = async (id: string, status: Status) => {
+    if (status === "confirmed") {
+      const reservation = reservations.find(
+        (reservation) => reservation.id === id,
+      );
+
+      if (reservation) {
+        const capacity = getCapacityInfo(reservation);
+
+        if (capacity.hasConflict) {
+          const confirmAnyway = window.confirm(
+            `Lane capacity conflict.\n\n` +
+              `This reservation requires ${capacity.lanesRequired} lanes, ` +
+              `but only ${capacity.minimumLanesAvailable} are available during part of the requested period.\n\n` +
+              `Do you want to confirm it anyway?`,
+          );
+
+          if (!confirmAnyway) {
+            return;
+          }
+        }
+      }
+    }
     setUpdatingId(id);
 
     try {
-      const response = await fetch(
-        `/api/admin/reservations/${id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status }),
-        }
-      );
+      const response = await fetch(`/api/admin/reservations/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status }),
+      });
 
       if (!response.ok) {
         throw new Error("Unable to update reservation.");
@@ -130,17 +172,13 @@ export default function ReservationsDashboard({
 
       setReservations((current) =>
         current.map((reservation) =>
-          reservation.id === id
-            ? { ...reservation, status }
-            : reservation
-        )
+          reservation.id === id ? { ...reservation, status } : reservation,
+        ),
       );
     } catch (error) {
       console.error(error);
 
-      alert(
-        "The reservation status could not be updated."
-      );
+      alert("The reservation status could not be updated.");
     } finally {
       setUpdatingId(null);
     }
@@ -150,6 +188,7 @@ export default function ReservationsDashboard({
     setEditingId(reservation.id);
     setEditDate(reservation.reservation_date);
     setEditTime(reservation.reservation_time);
+    setEditDuration(reservation.duration_minutes);
   };
 
   const cancelEditing = () => {
@@ -167,24 +206,20 @@ export default function ReservationsDashboard({
     setUpdatingId(id);
 
     try {
-      const response = await fetch(
-        `/api/admin/reservations/${id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            date: editDate,
-            time: editTime,
-          }),
-        }
-      );
+      const response = await fetch(`/api/admin/reservations/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          date: editDate,
+          time: editTime,
+          duration: editDuration,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error(
-          "Unable to update reservation date and time."
-        );
+        throw new Error("Unable to update reservation date and time.");
       }
 
       setReservations((current) =>
@@ -194,18 +229,17 @@ export default function ReservationsDashboard({
                 ...reservation,
                 reservation_date: editDate,
                 reservation_time: editTime,
+                duration_minutes: editDuration,
               }
-            : reservation
-        )
+            : reservation,
+        ),
       );
 
       cancelEditing();
     } catch (error) {
       console.error(error);
 
-      alert(
-        "The reservation date and time could not be updated."
-      );
+      alert("The reservation date and time could not be updated.");
     } finally {
       setUpdatingId(null);
     }
@@ -223,7 +257,6 @@ export default function ReservationsDashboard({
   return (
     <main className="min-h-screen bg-[#080808] px-5 py-10 text-white md:px-10">
       <div className="mx-auto max-w-7xl">
-
         {/* HEADER */}
 
         <header className="flex flex-col justify-between gap-6 border-b border-white/10 pb-8 sm:flex-row sm:items-end">
@@ -274,26 +307,21 @@ export default function ReservationsDashboard({
         {/* FILTERS */}
 
         <div className="mt-8 flex flex-wrap gap-2">
-          {(
-            [
-              "all",
-              "pending",
-              "confirmed",
-              "cancelled",
-            ] as const
-          ).map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`rounded-full px-5 py-2 text-sm capitalize transition ${
-                filter === status
-                  ? "bg-white text-black"
-                  : "border border-white/10 text-gray-400 hover:border-white/30 hover:text-white"
-              }`}
-            >
-              {status}
-            </button>
-          ))}
+          {(["all", "pending", "confirmed", "cancelled"] as const).map(
+            (status) => (
+              <button
+                key={status}
+                onClick={() => setFilter(status)}
+                className={`rounded-full px-5 py-2 text-sm capitalize transition ${
+                  filter === status
+                    ? "bg-white text-black"
+                    : "border border-white/10 text-gray-400 hover:border-white/30 hover:text-white"
+                }`}
+              >
+                {status}
+              </button>
+            ),
+          )}
         </div>
 
         {/* RESERVATIONS */}
@@ -310,8 +338,7 @@ export default function ReservationsDashboard({
               key={reservation.id}
               className="rounded-2xl border border-white/10 bg-white/[0.035] p-6"
             >
-              <div className="flex flex-col justify-between gap-6 lg:flex-row">
-
+              <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
                 {/* DETAILS */}
 
                 <div className="flex-1">
@@ -320,40 +347,97 @@ export default function ReservationsDashboard({
                       {reservation.name}
                     </h2>
 
-                    <StatusBadge
-                      status={reservation.status}
-                    />
+                    <StatusBadge status={reservation.status} />
                   </div>
 
-                  <p className="mt-2 text-gray-400">
-                    {reservation.phone}
-                  </p>
+                  <p className="mt-2 text-gray-400">{reservation.phone}</p>
 
                   <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                    <Detail
-                      label="Date"
-                      value={reservation.reservation_date}
-                    />
+                    <Detail label="Date" value={reservation.reservation_date} />
 
-                    <Detail
-                      label="Time"
-                      value={reservation.reservation_time}
-                    />
+                    <Detail label="Time" value={reservation.reservation_time} />
 
-                    <Detail
-                      label="Guests"
-                      value={String(reservation.guests)}
-                    />
+                    <Detail label="Guests" value={String(reservation.guests)} />
 
                     <Detail
                       label="Occasion"
-                      value={
-                        reservation.occasion ||
-                        "General Visit"
-                      }
+                      value={reservation.occasion || "General Visit"}
+                    />
+                    <Detail
+                      label="Duration"
+                      value={formatDuration(reservation.duration_minutes)}
                     />
                   </div>
+                  {/* CAPACITY CHECK */}
+                  {(() => {
+                    const capacity = getCapacityInfo(reservation);
+                    const lanesNeeded = getLanesRequired(reservation.guests);
 
+                    /*
+                     * For a confirmed reservation, getCapacityInfo()
+                     * intentionally excludes the reservation itself.
+                     *
+                     * So for display purposes we subtract its own lanes
+                     * to show the real remaining capacity after this
+                     * confirmed booking is occupying its lanes.
+                     */
+                    const lanesAvailable =
+                      reservation.status === "confirmed"
+                        ? Math.max(
+                            0,
+                            capacity.minimumLanesAvailable - lanesNeeded,
+                          )
+                        : capacity.minimumLanesAvailable;
+
+                    if (reservation.status === "confirmed") {
+                      return (
+                        <div className="mt-6 rounded-xl border border-blue-400/20 bg-blue-400/10 px-4 py-3">
+                          <p className="font-semibold text-blue-300">
+                            ✓ Confirmed Reservation
+                          </p>
+
+                          <p className="mt-1 text-sm text-blue-200/70">
+                            Uses {lanesNeeded}{" "}
+                            {lanesNeeded === 1 ? "lane" : "lanes"}. At least{" "}
+                            {lanesAvailable} of 8 lanes remain available during
+                            this period.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    if (capacity.hasConflict) {
+                      return (
+                        <div className="mt-6 rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3">
+                          <p className="font-semibold text-red-300">
+                            ⚠ Lane Capacity Conflict
+                          </p>
+
+                          <p className="mt-1 text-sm text-red-200/70">
+                            This reservation requires {lanesNeeded}{" "}
+                            {lanesNeeded === 1 ? "lane" : "lanes"}, but only{" "}
+                            {capacity.minimumLanesAvailable} are available
+                            during part of this reservation.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="mt-6 rounded-xl border border-green-400/20 bg-green-400/10 px-4 py-3">
+                        <p className="font-semibold text-green-300">
+                          ✓ Capacity Available
+                        </p>
+
+                        <p className="mt-1 text-sm text-green-200/70">
+                          Requires {lanesNeeded}{" "}
+                          {lanesNeeded === 1 ? "lane" : "lanes"}. At least{" "}
+                          {capacity.minimumLanesAvailable} of 8 lanes are
+                          currently available during this period.
+                        </p>
+                      </div>
+                    );
+                  })()}
                   {reservation.notes && (
                     <div className="mt-6">
                       <p className="text-xs uppercase tracking-[0.25em] text-gray-600">
@@ -374,8 +458,7 @@ export default function ReservationsDashboard({
                         Update Date & Time
                       </p>
 
-                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-
+                      <div className="mt-4 grid gap-4 sm:grid-cols-3">
                         <div>
                           <label className="mb-2 block text-xs uppercase tracking-[0.2em] text-gray-500">
                             Date
@@ -395,7 +478,28 @@ export default function ReservationsDashboard({
                           <label className="mb-2 block text-xs uppercase tracking-[0.2em] text-gray-500">
                             Time
                           </label>
+                          <div>
+                            <label className="mb-2 block text-xs uppercase tracking-[0.2em] text-gray-500">
+                              Duration
+                            </label>
 
+                            <select
+                              value={editDuration}
+                              onChange={(event) =>
+                                setEditDuration(Number(event.target.value))
+                              }
+                              className="w-full rounded-xl border border-white/10 bg-[#171717] px-4 py-3 text-white outline-none focus:border-fuchsia-400/50"
+                            >
+                              {reservationDurations.map((duration) => (
+                                <option
+                                  key={duration.value}
+                                  value={duration.value}
+                                >
+                                  {duration.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                           <select
                             value={editTime}
                             onChange={(event) =>
@@ -404,10 +508,7 @@ export default function ReservationsDashboard({
                             className="w-full rounded-xl border border-white/10 bg-[#171717] px-4 py-3 text-white outline-none focus:border-fuchsia-400/50"
                           >
                             {reservationTimes.map((time) => (
-                              <option
-                                key={time}
-                                value={time}
-                              >
+                              <option key={time} value={time}>
                                 {time}
                               </option>
                             ))}
@@ -417,12 +518,8 @@ export default function ReservationsDashboard({
 
                       <div className="mt-5 flex flex-wrap gap-3">
                         <button
-                          onClick={() =>
-                            saveDateTime(reservation.id)
-                          }
-                          disabled={
-                            updatingId === reservation.id
-                          }
+                          onClick={() => saveDateTime(reservation.id)}
+                          disabled={updatingId === reservation.id}
                           className="rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-black transition hover:scale-[1.02] disabled:opacity-50"
                         >
                           {updatingId === reservation.id
@@ -432,9 +529,7 @@ export default function ReservationsDashboard({
 
                         <button
                           onClick={cancelEditing}
-                          disabled={
-                            updatingId === reservation.id
-                          }
+                          disabled={updatingId === reservation.id}
                           className="rounded-full border border-white/15 px-6 py-2.5 text-sm text-gray-300 transition hover:border-white hover:text-white"
                         >
                           Cancel
@@ -449,50 +544,23 @@ export default function ReservationsDashboard({
                 <div className="flex shrink-0 flex-wrap gap-2 lg:flex-col">
                   <StatusButton
                     label="Confirm"
-                    disabled={
-                      updatingId === reservation.id
-                    }
-                    active={
-                      reservation.status === "confirmed"
-                    }
-                    onClick={() =>
-                      updateStatus(
-                        reservation.id,
-                        "confirmed"
-                      )
-                    }
+                    disabled={updatingId === reservation.id}
+                    active={reservation.status === "confirmed"}
+                    onClick={() => updateStatus(reservation.id, "confirmed")}
                   />
 
                   <StatusButton
                     label="Pending"
-                    disabled={
-                      updatingId === reservation.id
-                    }
-                    active={
-                      reservation.status === "pending"
-                    }
-                    onClick={() =>
-                      updateStatus(
-                        reservation.id,
-                        "pending"
-                      )
-                    }
+                    disabled={updatingId === reservation.id}
+                    active={reservation.status === "pending"}
+                    onClick={() => updateStatus(reservation.id, "pending")}
                   />
 
                   <StatusButton
                     label="Cancel"
-                    disabled={
-                      updatingId === reservation.id
-                    }
-                    active={
-                      reservation.status === "cancelled"
-                    }
-                    onClick={() =>
-                      updateStatus(
-                        reservation.id,
-                        "cancelled"
-                      )
-                    }
+                    disabled={updatingId === reservation.id}
+                    active={reservation.status === "cancelled"}
+                    onClick={() => updateStatus(reservation.id, "cancelled")}
                   />
 
                   <button
@@ -525,51 +593,32 @@ function CountCard({
       onClick={onClick}
       className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-left transition hover:bg-white/[0.07]"
     >
-      <p className="text-sm text-gray-500">
-        {label}
-      </p>
+      <p className="text-sm text-gray-500">{label}</p>
 
-      <p className="mt-2 text-4xl font-semibold">
-        {count}
-      </p>
+      <p className="mt-2 text-4xl font-semibold">{count}</p>
     </button>
   );
 }
 
-function Detail({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-xs uppercase tracking-[0.2em] text-gray-600">
         {label}
       </p>
 
-      <p className="mt-1 text-white">
-        {value}
-      </p>
+      <p className="mt-1 text-white">{value}</p>
     </div>
   );
 }
 
-function StatusBadge({
-  status,
-}: {
-  status: Status;
-}) {
+function StatusBadge({ status }: { status: Status }) {
   const styles = {
-    pending:
-      "border-yellow-400/20 bg-yellow-400/10 text-yellow-300",
+    pending: "border-yellow-400/20 bg-yellow-400/10 text-yellow-300",
 
-    confirmed:
-      "border-green-400/20 bg-green-400/10 text-green-300",
+    confirmed: "border-green-400/20 bg-green-400/10 text-green-300",
 
-    cancelled:
-      "border-red-400/20 bg-red-400/10 text-red-300",
+    cancelled: "border-red-400/20 bg-red-400/10 text-red-300",
   };
 
   return (
@@ -605,4 +654,13 @@ function StatusButton({
       {label}
     </button>
   );
+}
+function formatDuration(minutes: number) {
+  if (minutes === 60) return "1 Hour";
+  if (minutes === 90) return "1.5 Hours";
+  if (minutes === 120) return "2 Hours";
+  if (minutes === 150) return "2.5 Hours";
+  if (minutes === 180) return "3 Hours";
+
+  return `${minutes} Minutes`;
 }

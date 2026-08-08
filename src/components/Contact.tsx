@@ -41,66 +41,73 @@ const reservationTimes = [
   "1:30 AM",
 ];
 
+const reservationDurations = [
+  { label: "1 Hour", value: 60 },
+  { label: "1.5 Hours", value: 90 },
+  { label: "2 Hours", value: 120 },
+  { label: "2.5 Hours", value: 150 },
+  { label: "3 Hours", value: 180 },
+];
+
 export default function Contact() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(false);
   const [minDate, setMinDate] = useState("");
 
-useEffect(() => {
-  const today = new Date();
+  useEffect(() => {
+    const today = new Date();
 
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
 
-  setMinDate(`${year}-${month}-${day}`);
-}, []);
+    setMinDate(`${year}-${month}-${day}`);
+  }, []);
 
-  const handleSubmit = async (
-  event: FormEvent<HTMLFormElement>
-) => {
-  event.preventDefault();
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-  const form = event.currentTarget;
-  const formData = new FormData(form);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
 
-  const reservation = {
-    name: formData.get("name"),
-    phone: formData.get("phone"),
-    date: formData.get("date"),
-    time: formData.get("time"),
-    guests: Number(formData.get("guests")),
-    occasion: formData.get("occasion"),
-    notes: formData.get("notes"),
-  };
+    const reservation = {
+      name: formData.get("name"),
+      phone: formData.get("phone"),
+      date: formData.get("date"),
+      time: formData.get("time"),
+      guests: Number(formData.get("guests")),
+      occasion: formData.get("occasion"),
+      notes: formData.get("notes"),
+      duration: Number(formData.get("duration")),
+    };
 
-  setSubmitting(true);
-  setSubmitted(false);
-  setError(false);
+    setSubmitting(true);
+    setSubmitted(false);
+    setError(false);
 
-  try {
-    const response = await fetch("/api/reservations", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(reservation),
-    });
+    try {
+      const response = await fetch("/api/reservations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(reservation),
+      });
 
-    if (!response.ok) {
-      throw new Error("Reservation submission failed");
+      if (!response.ok) {
+        throw new Error("Reservation submission failed");
+      }
+
+      form.reset();
+      setSubmitted(true);
+    } catch (error) {
+      console.error(error);
+      setError(true);
+    } finally {
+      setSubmitting(false);
     }
-
-    form.reset();
-    setSubmitted(true);
-  } catch (error) {
-    console.error(error);
-    setError(true);
-  } finally {
-    setSubmitting(false);
-  }
-};
+  };
   return (
     <section
       id="contact"
@@ -177,12 +184,7 @@ useEffect(() => {
             <h3 className="mt-3 text-3xl font-semibold">Plan Your Visit</h3>
           </div>
 
-          <form
-  onSubmit={handleSubmit}
-  className="space-y-5"
->
-            
-
+          <form onSubmit={handleSubmit} className="space-y-5">
             {/* NAME */}
             <div>
               <label
@@ -269,7 +271,7 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* GUESTS + OCCASION */}
+            {/* GUESTS + DURATION */}
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
                 <label
@@ -293,26 +295,50 @@ useEffect(() => {
 
               <div>
                 <label
-                  htmlFor="occasion"
+                  htmlFor="duration"
                   className="mb-2 block text-sm text-gray-300"
                 >
-                  Occasion
+                  Reservation Duration
                 </label>
 
                 <select
-                  id="occasion"
-                  name="occasion"
-                  defaultValue="General Visit"
+                  id="duration"
+                  name="duration"
+                  required
+                  defaultValue="60"
                   className="w-full rounded-xl border border-white/10 bg-[#171717] px-4 py-3.5 text-white outline-none transition focus:border-fuchsia-400/60"
                 >
-                  <option>General Visit</option>
-                  <option>Birthday</option>
-                  <option>Corporate Event</option>
-                  <option>School / University</option>
-                  <option>Group Event</option>
-                  <option>Other</option>
+                  {reservationDurations.map((duration) => (
+                    <option key={duration.value} value={duration.value}>
+                      {duration.label}
+                    </option>
+                  ))}
                 </select>
               </div>
+            </div>
+
+            {/* OCCASION */}
+            <div>
+              <label
+                htmlFor="occasion"
+                className="mb-2 block text-sm text-gray-300"
+              >
+                Occasion
+              </label>
+
+              <select
+                id="occasion"
+                name="occasion"
+                defaultValue="General Visit"
+                className="w-full rounded-xl border border-white/10 bg-[#171717] px-4 py-3.5 text-white outline-none transition focus:border-fuchsia-400/60"
+              >
+                <option>General Visit</option>
+                <option>Birthday</option>
+                <option>Corporate Event</option>
+                <option>School / University</option>
+                <option>Group Event</option>
+                <option>Other</option>
+              </select>
             </div>
 
             {/* NOTES */}

@@ -44,6 +44,14 @@ const allowedTimes = new Set([
   "1:30 AM",
 ]);
 
+const allowedDurations = new Set([
+  60,
+  90,
+  120,
+  150,
+  180,
+]);
+
 export async function PATCH(
   request: Request,
   {
@@ -79,6 +87,7 @@ export async function PATCH(
     status?: string;
     reservation_date?: string;
     reservation_time?: string;
+    duration_minutes?: number;
   } = {};
 
   if (body.status !== undefined) {
@@ -126,7 +135,21 @@ export async function PATCH(
       { status: 400 }
     );
   }
+if (body.duration !== undefined) {
+  const duration = Number(body.duration);
 
+  if (
+    !Number.isInteger(duration) ||
+    !allowedDurations.has(duration)
+  ) {
+    return NextResponse.json(
+      { error: "Invalid reservation duration." },
+      { status: 400 }
+    );
+  }
+
+  updates.duration_minutes = duration;
+}
   const supabase = createSupabaseAdminClient();
 
   const { data, error } = await supabase
@@ -134,13 +157,20 @@ export async function PATCH(
     .update(updates)
     .eq("id", id)
     .select(
-      `
-        id,
-        reservation_date,
-        reservation_time,
-        status
-      `
-    )
+  `
+    id,
+    created_at,
+    name,
+    phone,
+    reservation_date,
+    reservation_time,
+    duration_minutes,
+    guests,
+    occasion,
+    notes,
+    status
+  `
+)
     .single();
 
   if (error) {

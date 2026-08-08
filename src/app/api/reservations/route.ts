@@ -37,14 +37,21 @@ const allowedTimes = new Set([
   "1:30 AM",
 ]);
 
+const allowedDurations = new Set([
+  60,
+  90,
+  120,
+  150,
+  180,
+]);
+
 export async function POST(request: Request) {
   try {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 
     const resendApiKey = process.env.RESEND_API_KEY;
-    const notificationEmail =
-      process.env.RESERVATION_NOTIFICATION_EMAIL;
+    const notificationEmail = process.env.RESERVATION_NOTIFICATION_EMAIL;
     const fromEmail = process.env.RESEND_FROM_EMAIL;
 
     if (!supabaseUrl || !supabaseSecretKey) {
@@ -52,7 +59,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json(
         { error: "Server configuration error." },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -63,6 +70,7 @@ export async function POST(request: Request) {
     const reservationDate = String(body.date ?? "").trim();
     const reservationTime = String(body.time ?? "").trim();
     const guests = Number(body.guests);
+    const duration = Number(body.duration);
     const occasion = String(body.occasion ?? "").trim();
     const notes = String(body.notes ?? "").trim();
 
@@ -72,38 +80,36 @@ export async function POST(request: Request) {
       !reservationDate ||
       !reservationTime ||
       !Number.isInteger(guests) ||
-      guests < 1
+      guests < 1 ||
+      !Number.isInteger(duration) ||
+      !allowedDurations.has(duration)
     ) {
       return NextResponse.json(
         { error: "Please complete all required fields." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (guests > 64) {
       return NextResponse.json(
         { error: "Guest count is too high." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!allowedTimes.has(reservationTime)) {
       return NextResponse.json(
         { error: "Invalid reservation time." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const supabase = createClient(
-      supabaseUrl,
-      supabaseSecretKey,
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      }
-    );
+    const supabase = createClient(supabaseUrl, supabaseSecretKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
 
     /*
      * 1. SAVE RESERVATION TO DATABASE
@@ -115,6 +121,7 @@ export async function POST(request: Request) {
         phone,
         reservation_date: reservationDate,
         reservation_time: reservationTime,
+        duration_minutes: duration,
         guests,
         occasion: occasion || null,
         notes: notes || null,
@@ -127,7 +134,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json(
         { error: "Unable to save reservation." },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -190,6 +197,10 @@ export async function POST(request: Request) {
                   <strong>Time:</strong><br />
                   ${escapeHtml(reservationTime)}
                 </p>
+                <p>
+  <strong>Duration:</strong><br />
+  ${duration} minutes
+</p>
 
                 <p>
                   <strong>Guests:</strong><br />
@@ -232,7 +243,7 @@ export async function POST(request: Request) {
         if (emailResult.error) {
           console.error(
             "Reservation notification email error:",
-            emailResult.error
+            emailResult.error,
           );
         }
       } catch (emailError) {
@@ -241,14 +252,11 @@ export async function POST(request: Request) {
          * We do not tell the customer their reservation failed
          * because the database save already succeeded.
          */
-        console.error(
-          "Reservation notification email failed:",
-          emailError
-        );
+        console.error("Reservation notification email failed:", emailError);
       }
     } else {
       console.warn(
-        "Resend environment variables are missing. Reservation saved without email notification."
+        "Resend environment variables are missing. Reservation saved without email notification.",
       );
     }
 
@@ -262,14 +270,14 @@ export async function POST(request: Request) {
       },
       {
         status: 201,
-      }
+      },
     );
   } catch (error) {
     console.error("Reservation API error:", error);
 
     return NextResponse.json(
       { error: "Something went wrong." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

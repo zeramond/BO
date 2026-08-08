@@ -35,6 +35,7 @@ export default async function ReservationsPage() {
         phone,
         reservation_date,
         reservation_time,
+        duration_minutes,
         guests,
         occasion,
         notes,
