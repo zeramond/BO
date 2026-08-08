@@ -150,8 +150,7 @@ export default function Contact() {
           </h2>
 
           <p className="mt-8 max-w-xl text-lg leading-8 text-gray-300">
-            Send us your preferred date and time and our team will get back to
-            you to confirm availability.
+            Tell us what you have in mind and our team will contact you with availability, pricing, and the best options for your group.
           </p>
 
           <a
@@ -178,10 +177,10 @@ export default function Contact() {
         >
           <div className="mb-8">
             <p className="text-xs uppercase tracking-[0.4em] text-gray-500">
-              Reservation Inquiry
+              Booking & Pricing Inquiry
             </p>
 
-            <h3 className="mt-3 text-3xl font-semibold">Plan Your Visit</h3>
+            <h3 className="mt-3 text-3xl font-semibold">Tell Us What You’re Planning</h3>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -364,6 +363,10 @@ export default function Contact() {
               disabled={submitting}
               className="w-full rounded-full bg-white px-8 py-4 font-semibold text-black transition duration-300 hover:scale-[1.02] hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
+              <p className="text-center text-xs leading-5 text-gray-500">
+  No commitment required. This is only an inquiry — our team will contact
+  you with pricing, availability, and booking options.
+</p>
               {submitting ? "Sending Request..." : "Send Reservation Request"}
             </button>
             {submitted && (
