@@ -3,6 +3,14 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { FormEvent, useEffect, useState } from "react";
+import Script from "next/script";
+declare global {
+  interface Window {
+    turnstile?: {
+      reset: () => void;
+    };
+  }
+}
 
 const mapsUrl = "https://maps.app.goo.gl/fBZoQBFcasWKdwHo9";
 
@@ -76,10 +84,12 @@ export default function Contact() {
       phone: formData.get("phone"),
       date: formData.get("date"),
       time: formData.get("time"),
+      duration: Number(formData.get("duration")),
       guests: Number(formData.get("guests")),
       occasion: formData.get("occasion"),
       notes: formData.get("notes"),
-      duration: Number(formData.get("duration")),
+      website: formData.get("website"),
+      turnstileToken: formData.get("cf-turnstile-response"),
     };
 
     setSubmitting(true);
@@ -96,8 +106,12 @@ export default function Contact() {
       });
 
       if (!response.ok) {
-        throw new Error("Reservation submission failed");
-      }
+  const result = await response.json();
+
+  throw new Error(
+    result.error || "Reservation submission failed"
+  );
+}
 
       form.reset();
       setSubmitted(true);
@@ -105,14 +119,22 @@ export default function Contact() {
       console.error(error);
       setError(true);
     } finally {
-      setSubmitting(false);
-    }
+  setSubmitting(false);
+
+  // Turnstile tokens are single-use.
+  // Generate a fresh token for the next submission attempt.
+  window.turnstile?.reset();
+}
   };
   return (
     <section
       id="contact"
       className="relative min-h-screen overflow-hidden px-6 py-28 text-white md:px-8 md:py-36"
     >
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+        strategy="afterInteractive"
+      />
       {/* BACKGROUND */}
       <Image
         src="/images/lanes_wide4.jpg"
@@ -150,7 +172,8 @@ export default function Contact() {
           </h2>
 
           <p className="mt-8 max-w-xl text-lg leading-8 text-gray-300">
-            Tell us what you have in mind and our team will contact you with availability, pricing, and the best options for your group.
+            Tell us what you have in mind and our team will contact you with
+            availability, pricing, and the best options for your group.
           </p>
 
           <a
@@ -180,10 +203,29 @@ export default function Contact() {
               Booking & Pricing Inquiry
             </p>
 
-            <h3 className="mt-3 text-3xl font-semibold">Tell Us What You’re Planning</h3>
+            <h3 className="mt-3 text-3xl font-semibold">
+              Tell Us What You’re Planning
+            </h3>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* BOT HONEYPOT — real users never see this */}
+<div
+  aria-hidden="true"
+  className="absolute -left-[9999px] h-px w-px overflow-hidden"
+>
+  <label htmlFor="website">
+    Website
+  </label>
+
+  <input
+    id="website"
+    name="website"
+    type="text"
+    tabIndex={-1}
+    autoComplete="off"
+  />
+</div>
             {/* NAME */}
             <div>
               <label
@@ -357,18 +399,27 @@ export default function Contact() {
                 className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3.5 text-white outline-none transition placeholder:text-gray-600 focus:border-fuchsia-400/60 focus:bg-white/[0.09]"
               />
             </div>
-
+            {/* SPAM PROTECTION */}
+            <div className="flex justify-center py-2">
+              <div
+                className="cf-turnstile"
+                data-sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                data-theme="dark"
+                data-size="flexible"
+              />
+            </div>
             <button
               type="submit"
               disabled={submitting}
               className="w-full rounded-full bg-white px-8 py-4 font-semibold text-black transition duration-300 hover:scale-[1.02] hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <p className="text-center text-xs leading-5 text-gray-500">
-  No commitment required. This is only an inquiry — our team will contact
-  you with pricing, availability, and booking options.
-</p>
-              {submitting ? "Sending Request..." : "Send Reservation Request"}
+                No commitment required. This is only an inquiry — our team will
+                contact you with pricing, availability, and booking options.
+              </p>
+              {submitting ? "Sending Request..." : "Request Pricing & Availability"}
             </button>
+            
             {submitted && (
               <div className="rounded-xl border border-green-400/20 bg-green-400/10 px-4 py-3 text-center text-sm text-green-300">
                 ✓ Reservation request sent. Our team will contact you to confirm
@@ -381,11 +432,6 @@ export default function Contact() {
                 Something went wrong. Please try again.
               </div>
             )}
-
-            <p className="text-center text-xs leading-5 text-gray-500">
-              This is a reservation request. Our team will contact you to
-              confirm availability.
-            </p>
           </form>
         </motion.div>
       </div>

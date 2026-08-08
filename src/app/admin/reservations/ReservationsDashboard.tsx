@@ -7,6 +7,7 @@ import {
   checkReservationCapacity,
   getLanesRequired,
 } from "@/lib/reservations/capacity";
+import Link from "next/link";
 
 type Status = "pending" | "confirmed" | "cancelled";
 
@@ -274,12 +275,21 @@ export default function ReservationsDashboard({ initialReservations }: Props) {
             </p>
           </div>
 
-          <button
-            onClick={logout}
-            className="self-start rounded-full border border-white/20 px-5 py-2 text-sm transition hover:bg-white hover:text-black sm:self-auto"
-          >
-            Log Out
-          </button>
+          <div className="flex flex-wrap gap-3">
+  <Link
+    href="/admin/schedule"
+    className="rounded-full border border-fuchsia-400/30 px-5 py-2 text-sm text-fuchsia-300 transition hover:bg-fuchsia-400 hover:text-black"
+  >
+    Schedule
+  </Link>
+
+  <button
+    onClick={logout}
+    className="rounded-full border border-white/20 px-5 py-2 text-sm transition hover:bg-white hover:text-black"
+  >
+    Log Out
+  </button>
+</div>
         </header>
 
         {/* COUNTS */}

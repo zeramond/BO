@@ -37,13 +37,7 @@ const allowedTimes = new Set([
   "1:30 AM",
 ]);
 
-const allowedDurations = new Set([
-  60,
-  90,
-  120,
-  150,
-  180,
-]);
+const allowedDurations = new Set([60, 90, 120, 150, 180]);
 
 export async function POST(request: Request) {
   try {
@@ -53,8 +47,9 @@ export async function POST(request: Request) {
     const resendApiKey = process.env.RESEND_API_KEY;
     const notificationEmail = process.env.RESERVATION_NOTIFICATION_EMAIL;
     const fromEmail = process.env.RESEND_FROM_EMAIL;
+    const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
 
-    if (!supabaseUrl || !supabaseSecretKey) {
+    if (!supabaseUrl || !supabaseSecretKey || !turnstileSecretKey) {
       console.error("Missing Supabase environment variables.");
 
       return NextResponse.json(
@@ -73,6 +68,31 @@ export async function POST(request: Request) {
     const duration = Number(body.duration);
     const occasion = String(body.occasion ?? "").trim();
     const notes = String(body.notes ?? "").trim();
+    const website = String(body.website ?? "").trim();
+    const turnstileToken = String(body.turnstileToken ?? "").trim();
+
+    /*
+     * HONEYPOT SPAM CHECK
+     *
+     * Humans never fill this field.
+     * Bots often do.
+     */
+    if (website) {
+      console.warn("Honeypot blocked a reservation submission.");
+
+      /*
+       * Pretend it succeeded so the bot does not
+       * learn that it triggered our spam protection.
+       */
+      return NextResponse.json(
+        {
+          success: true,
+        },
+        {
+          status: 201,
+        },
+      );
+    }
 
     if (
       !name ||
@@ -103,7 +123,63 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    if (!turnstileToken) {
+      return NextResponse.json(
+        {
+          error: "Human verification is required.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+    /*
+     * VERIFY CLOUDFLARE TURNSTILE
+     */
+    const verificationData = new FormData();
 
+    verificationData.append("secret", turnstileSecretKey);
+
+    verificationData.append("response", turnstileToken);
+
+    const verificationResponse = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      {
+        method: "POST",
+        body: verificationData,
+      },
+    );
+
+    if (!verificationResponse.ok) {
+      console.error("Turnstile verification request failed.");
+
+      return NextResponse.json(
+        {
+          error: "Unable to verify request.",
+        },
+        {
+          status: 503,
+        },
+      );
+    }
+
+    const verificationResult = await verificationResponse.json();
+
+    if (!verificationResult.success) {
+      console.warn(
+        "Turnstile rejected reservation:",
+        verificationResult["error-codes"],
+      );
+
+      return NextResponse.json(
+        {
+          error: "Human verification failed.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
     const supabase = createClient(supabaseUrl, supabaseSecretKey, {
       auth: {
         persistSession: false,
