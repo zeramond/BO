@@ -1,189 +1,97 @@
 import { NextResponse } from "next/server";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getAdminSession } from "@/lib/auth/admin";
+import { getSql } from "@/lib/db";
 
-const allowedStatuses = new Set([
-  "pending",
-  "confirmed",
-  "cancelled",
-]);
-
+const allowedStatuses = new Set(["pending", "confirmed", "cancelled"]);
 const allowedTimes = new Set([
-  "10:00 AM",
-  "10:30 AM",
-  "11:00 AM",
-  "11:30 AM",
-  "12:00 PM",
-  "12:30 PM",
-  "1:00 PM",
-  "1:30 PM",
-  "2:00 PM",
-  "2:30 PM",
-  "3:00 PM",
-  "3:30 PM",
-  "4:00 PM",
-  "4:30 PM",
-  "5:00 PM",
-  "5:30 PM",
-  "6:00 PM",
-  "6:30 PM",
-  "7:00 PM",
-  "7:30 PM",
-  "8:00 PM",
-  "8:30 PM",
-  "9:00 PM",
-  "9:30 PM",
-  "10:00 PM",
-  "10:30 PM",
-  "11:00 PM",
-  "11:30 PM",
-  "12:00 AM",
-  "12:30 AM",
-  "1:00 AM",
-  "1:30 AM",
+  "10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","12:30 PM","1:00 PM","1:30 PM","2:00 PM","2:30 PM","3:00 PM","3:30 PM","4:00 PM","4:30 PM","5:00 PM","5:30 PM","6:00 PM","6:30 PM","7:00 PM","7:30 PM","8:00 PM","8:30 PM","9:00 PM","9:30 PM","10:00 PM","10:30 PM","11:00 PM","11:30 PM","12:00 AM","12:30 AM","1:00 AM","1:30 AM"
 ]);
-
-const allowedDurations = new Set([
-  60,
-  90,
-  120,
-  150,
-  180,
-]);
+const allowedDurations = new Set([60, 90, 120, 150, 180]);
 
 export async function PATCH(
   request: Request,
-  {
-    params,
-  }: {
-    params: Promise<{
-      id: string;
-    }>;
-  }
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const authClient = await createSupabaseServerClient();
-
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-
-  if (
-    !user ||
-    !user.email ||
-    user.email.toLowerCase() !==
-      process.env.ADMIN_EMAIL?.toLowerCase()
-  ) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
+  if (!(await getAdminSession())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
   const body = await request.json();
 
-  const updates: {
-    status?: string;
-    reservation_date?: string;
-    reservation_time?: string;
-    duration_minutes?: number;
-  } = {};
+  let status: string | null = null;
+  let reservationDate: string | null = null;
+  let reservationTime: string | null = null;
+  let duration: number | null = null;
 
   if (body.status !== undefined) {
-    const status = String(body.status);
-
-    if (!allowedStatuses.has(status)) {
-      return NextResponse.json(
-        { error: "Invalid status." },
-        { status: 400 }
-      );
+    const value = String(body.status);
+    if (!allowedStatuses.has(value)) {
+      return NextResponse.json({ error: "Invalid status." }, { status: 400 });
     }
-
-    updates.status = status;
+    status = value;
   }
 
   if (body.date !== undefined) {
-    const date = String(body.date).trim();
-
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return NextResponse.json(
-        { error: "Invalid reservation date." },
-        { status: 400 }
-      );
+    const value = String(body.date).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return NextResponse.json({ error: "Invalid reservation date." }, { status: 400 });
     }
-
-    updates.reservation_date = date;
+    reservationDate = value;
   }
 
   if (body.time !== undefined) {
-    const time = String(body.time).trim();
+    const value = String(body.time).trim();
+    if (!allowedTimes.has(value)) {
+      return NextResponse.json({ error: "Invalid reservation time." }, { status: 400 });
+    }
+    reservationTime = value;
+  }
 
-    if (!allowedTimes.has(time)) {
-      return NextResponse.json(
-        { error: "Invalid reservation time." },
-        { status: 400 }
-      );
+  if (body.duration !== undefined) {
+    const value = Number(body.duration);
+    if (!Number.isInteger(value) || !allowedDurations.has(value)) {
+      return NextResponse.json({ error: "Invalid reservation duration." }, { status: 400 });
+    }
+    duration = value;
+  }
+
+  if (status === null && reservationDate === null && reservationTime === null && duration === null) {
+    return NextResponse.json({ error: "No changes supplied." }, { status: 400 });
+  }
+
+  try {
+    const sql = getSql();
+    const rows = await sql`
+      UPDATE reservations
+      SET
+        status = COALESCE(${status}, status),
+        reservation_date = COALESCE(${reservationDate}::date, reservation_date),
+        reservation_time = COALESCE(${reservationTime}, reservation_time),
+        duration_minutes = COALESCE(${duration}, duration_minutes)
+      WHERE id::text = ${id}
+      RETURNING
+        id::text AS id,
+        created_at::text AS created_at,
+        name,
+        phone,
+        reservation_date::text AS reservation_date,
+        reservation_time,
+        duration_minutes,
+        guests,
+        occasion,
+        notes,
+        status
+    `;
+
+    if (rows.length === 0) {
+      return NextResponse.json({ error: "Reservation not found." }, { status: 404 });
     }
 
-    updates.reservation_time = time;
-  }
-
-  if (Object.keys(updates).length === 0) {
-    return NextResponse.json(
-      { error: "No changes supplied." },
-      { status: 400 }
-    );
-  }
-if (body.duration !== undefined) {
-  const duration = Number(body.duration);
-
-  if (
-    !Number.isInteger(duration) ||
-    !allowedDurations.has(duration)
-  ) {
-    return NextResponse.json(
-      { error: "Invalid reservation duration." },
-      { status: 400 }
-    );
-  }
-
-  updates.duration_minutes = duration;
-}
-  const supabase = createSupabaseAdminClient();
-
-  const { data, error } = await supabase
-    .from("reservations")
-    .update(updates)
-    .eq("id", id)
-    .select(
-  `
-    id,
-    created_at,
-    name,
-    phone,
-    reservation_date,
-    reservation_time,
-    duration_minutes,
-    guests,
-    occasion,
-    notes,
-    status
-  `
-)
-    .single();
-
-  if (error) {
+    return NextResponse.json({ success: true, reservation: rows[0] });
+  } catch (error) {
     console.error("Reservation update error:", error);
-
-    return NextResponse.json(
-      { error: "Unable to update reservation." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Unable to update reservation." }, { status: 500 });
   }
-
-  return NextResponse.json({
-    success: true,
-    reservation: data,
-  });
 }
