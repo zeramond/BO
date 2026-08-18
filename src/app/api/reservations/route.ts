@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+
+import { getSql } from "@/lib/db";
 
 const allowedTimes = new Set([
   "10:00 AM",
@@ -41,16 +42,13 @@ const allowedDurations = new Set([60, 90, 120, 150, 180]);
 
 export async function POST(request: Request) {
   try {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
-
     const resendApiKey = process.env.RESEND_API_KEY;
     const notificationEmail = process.env.RESERVATION_NOTIFICATION_EMAIL;
     const fromEmail = process.env.RESEND_FROM_EMAIL;
     const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
 
-    if (!supabaseUrl || !supabaseSecretKey || !turnstileSecretKey) {
-      console.error("Missing Supabase environment variables.");
+    if (!process.env.DATABASE_URL || !turnstileSecretKey) {
+      console.error("Missing Neon or Turnstile environment variables.");
 
       return NextResponse.json(
         { error: "Server configuration error." },
@@ -71,26 +69,12 @@ export async function POST(request: Request) {
     const website = String(body.website ?? "").trim();
     const turnstileToken = String(body.turnstileToken ?? "").trim();
 
-    /*
-     * HONEYPOT SPAM CHECK
-     *
-     * Humans never fill this field.
-     * Bots often do.
-     */
     if (website) {
       console.warn("Honeypot blocked a reservation submission.");
 
-      /*
-       * Pretend it succeeded so the bot does not
-       * learn that it triggered our spam protection.
-       */
       return NextResponse.json(
-        {
-          success: true,
-        },
-        {
-          status: 201,
-        },
+        { success: true },
+        { status: 201 },
       );
     }
 
@@ -123,23 +107,16 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
     if (!turnstileToken) {
       return NextResponse.json(
-        {
-          error: "Human verification is required.",
-        },
-        {
-          status: 400,
-        },
+        { error: "Human verification is required." },
+        { status: 400 },
       );
     }
-    /*
-     * VERIFY CLOUDFLARE TURNSTILE
-     */
+
     const verificationData = new FormData();
-
     verificationData.append("secret", turnstileSecretKey);
-
     verificationData.append("response", turnstileToken);
 
     const verificationResponse = await fetch(
@@ -154,12 +131,8 @@ export async function POST(request: Request) {
       console.error("Turnstile verification request failed.");
 
       return NextResponse.json(
-        {
-          error: "Unable to verify request.",
-        },
-        {
-          status: 503,
-        },
+        { error: "Unable to verify request." },
+        { status: 503 },
       );
     }
 
@@ -172,54 +145,47 @@ export async function POST(request: Request) {
       );
 
       return NextResponse.json(
-        {
-          error: "Human verification failed.",
-        },
-        {
-          status: 403,
-        },
+        { error: "Human verification failed." },
+        { status: 403 },
       );
     }
-    const supabase = createClient(supabaseUrl, supabaseSecretKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    });
 
-    /*
-     * 1. SAVE RESERVATION TO DATABASE
-     */
-    const { data, error } = await supabase
-      .from("reservations")
-      .insert({
+    const sql = getSql();
+
+    const rows = await sql`
+      INSERT INTO reservations (
         name,
         phone,
-        reservation_date: reservationDate,
-        reservation_time: reservationTime,
-        duration_minutes: duration,
+        reservation_date,
+        reservation_time,
+        duration_minutes,
         guests,
-        occasion: occasion || null,
-        notes: notes || null,
-      })
-      .select("id")
-      .single();
+        occasion,
+        notes,
+        status,
+        source
+      )
+      VALUES (
+        ${name},
+        ${phone},
+        ${reservationDate}::date,
+        ${reservationTime},
+        ${duration},
+        ${guests},
+        ${occasion || null},
+        ${notes || null},
+        'pending',
+        'website'
+      )
+      RETURNING id::text AS id
+    `;
 
-    if (error) {
-      console.error("Supabase reservation error:", error);
+    const reservationId = String(rows[0]?.id ?? "");
 
-      return NextResponse.json(
-        { error: "Unable to save reservation." },
-        { status: 500 },
-      );
+    if (!reservationId) {
+      throw new Error("Reservation insert did not return an ID.");
     }
 
-    /*
-     * 2. SEND STAFF EMAIL
-     *
-     * Reservation is already safely stored before
-     * attempting the email.
-     */
     if (resendApiKey && notificationEmail && fromEmail) {
       try {
         const resend = new Resend(resendApiKey);
@@ -229,87 +195,25 @@ export async function POST(request: Request) {
           to: notificationEmail,
           subject: `New Reservation Request — ${name}`,
           html: `
-            <div
-              style="
-                font-family: Arial, Helvetica, sans-serif;
-                max-width: 620px;
-                margin: 0 auto;
-                color: #111111;
-              "
-            >
-              <h1 style="margin-bottom: 8px;">
-                New BO Bowling Reservation
-              </h1>
-
+            <div style="font-family: Arial, Helvetica, sans-serif; max-width: 620px; margin: 0 auto; color: #111111;">
+              <h1 style="margin-bottom: 8px;">New BO Bowling Reservation</h1>
               <p style="color: #666666; margin-top: 0;">
                 A new reservation request has been submitted through the website.
               </p>
-
-              <div
-                style="
-                  margin-top: 30px;
-                  padding: 24px;
-                  border: 1px solid #e5e5e5;
-                  border-radius: 14px;
-                  background: #fafafa;
-                "
-              >
-                <p>
-                  <strong>Name:</strong><br />
-                  ${escapeHtml(name)}
-                </p>
-
-                <p>
-                  <strong>Phone:</strong><br />
-                  ${escapeHtml(phone)}
-                </p>
-
-                <p>
-                  <strong>Date:</strong><br />
-                  ${escapeHtml(reservationDate)}
-                </p>
-
-                <p>
-                  <strong>Time:</strong><br />
-                  ${escapeHtml(reservationTime)}
-                </p>
-                <p>
-  <strong>Duration:</strong><br />
-  ${duration} minutes
-</p>
-
-                <p>
-                  <strong>Guests:</strong><br />
-                  ${guests}
-                </p>
-
-                <p>
-                  <strong>Occasion:</strong><br />
-                  ${escapeHtml(occasion || "General Visit")}
-                </p>
-
-                <p>
-                  <strong>Notes:</strong><br />
-                  ${escapeHtml(notes || "None")}
-                </p>
+              <div style="margin-top: 30px; padding: 24px; border: 1px solid #e5e5e5; border-radius: 14px; background: #fafafa;">
+                <p><strong>Name:</strong><br />${escapeHtml(name)}</p>
+                <p><strong>Phone:</strong><br />${escapeHtml(phone)}</p>
+                <p><strong>Date:</strong><br />${escapeHtml(reservationDate)}</p>
+                <p><strong>Time:</strong><br />${escapeHtml(reservationTime)}</p>
+                <p><strong>Duration:</strong><br />${duration} minutes</p>
+                <p><strong>Guests:</strong><br />${guests}</p>
+                <p><strong>Occasion:</strong><br />${escapeHtml(occasion || "General Visit")}</p>
+                <p><strong>Notes:</strong><br />${escapeHtml(notes || "None")}</p>
               </div>
-
-              <p
-                style="
-                  margin-top: 24px;
-                  color: #666666;
-                  font-size: 13px;
-                "
-              >
-                Reservation ID: ${data.id}
+              <p style="margin-top: 24px; color: #666666; font-size: 13px;">
+                Reservation ID: ${reservationId}
               </p>
-
-              <p
-                style="
-                  color: #888888;
-                  font-size: 12px;
-                "
-              >
+              <p style="color: #888888; font-size: 12px;">
                 This request has been saved to the BO Bowling reservation database.
               </p>
             </div>
@@ -323,11 +227,6 @@ export async function POST(request: Request) {
           );
         }
       } catch (emailError) {
-        /*
-         * IMPORTANT:
-         * We do not tell the customer their reservation failed
-         * because the database save already succeeded.
-         */
         console.error("Reservation notification email failed:", emailError);
       }
     } else {
@@ -336,17 +235,12 @@ export async function POST(request: Request) {
       );
     }
 
-    /*
-     * 3. RETURN SUCCESS
-     */
     return NextResponse.json(
       {
         success: true,
-        reservationId: data.id,
+        reservationId,
       },
-      {
-        status: 201,
-      },
+      { status: 201 },
     );
   } catch (error) {
     console.error("Reservation API error:", error);
@@ -358,10 +252,6 @@ export async function POST(request: Request) {
   }
 }
 
-/*
- * Prevent submitted customer text from being interpreted
- * as HTML inside the notification email.
- */
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
