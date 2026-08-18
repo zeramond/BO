@@ -1,37 +1,41 @@
 import { redirect } from "next/navigation";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getAdminSession } from "@/lib/auth/admin";
+import { getSql } from "@/lib/db";
 import ScheduleDashboard from "./ScheduleDashboard";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+type ScheduleReservation = {
+  id: string;
+  name: string;
+  phone: string;
+  reservation_date: string;
+  reservation_time: string;
+  duration_minutes: number;
+  guests: number;
+  occasion: string | null;
+  notes: string | null;
+  status: string;
+  source: string | null;
+};
+
 export default async function SchedulePage() {
-  const authClient = await createSupabaseServerClient();
+  const session = await getAdminSession();
 
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-
-  if (
-    !user ||
-    !user.email ||
-    user.email.toLowerCase() !==
-      process.env.ADMIN_EMAIL?.toLowerCase()
-  ) {
+  if (!session) {
     redirect("/admin/login");
   }
 
-  const supabase = createSupabaseAdminClient();
+  const sql = getSql();
 
-  const { data, error } = await supabase
-    .from("reservations")
-    .select(`
-      id,
+  const data = await sql`
+    SELECT
+      id::text AS id,
       name,
       phone,
-      reservation_date,
+      reservation_date::text AS reservation_date,
       reservation_time,
       duration_minutes,
       guests,
@@ -39,21 +43,14 @@ export default async function SchedulePage() {
       notes,
       status,
       source
-    `)
-    .eq("status", "confirmed")
-    .order("reservation_date", {
-      ascending: true,
-    });
-
-  if (error) {
-    throw new Error(
-      `Unable to load schedule: ${error.message}`
-    );
-  }
+    FROM reservations
+    WHERE status = 'confirmed'
+    ORDER BY reservation_date ASC
+  `;
 
   return (
     <ScheduleDashboard
-      reservations={data ?? []}
+      reservations={data as unknown as ScheduleReservation[]}
     />
   );
 }
