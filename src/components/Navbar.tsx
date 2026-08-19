@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-const reservationUrl =
-  "https://api.whatsapp.com/send?phone=96891309660&text=I%20would%20like%20to%20ask%20about%20reservations";
-
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -72,9 +69,7 @@ export default function Navbar() {
             </a>
 
             <a
-              href={reservationUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              href="#reservation-form"
               className="rounded-full border border-white px-5 py-2 transition hover:bg-white hover:text-black"
             >
               Reserve
@@ -155,9 +150,7 @@ export default function Navbar() {
 
           <div className="mt-12">
             <a
-              href={reservationUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              href="#reservation-form"
               onClick={closeMenu}
               className="inline-flex rounded-full bg-white px-8 py-4 font-semibold text-black"
             >
