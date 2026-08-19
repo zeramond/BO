@@ -370,18 +370,18 @@ export default function ReservationsDashboard({
           {filteredReservations.map((reservation) => (
             <article
               key={reservation.id}
-              className="rounded-2xl border border-white/10 bg-white/[0.035] p-6"
+              className="rounded-2xl border border-white/10 bg-white/[0.035] p-5 sm:p-7 lg:p-8"
             >
-              <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
-                <div className="flex-1">
+              <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-10">
+                <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-2xl font-semibold">{reservation.name}</h2>
+                    <h2 className="text-2xl font-semibold md:text-3xl">{reservation.name}</h2>
                     <StatusBadge status={reservation.status} />
                   </div>
 
-                  <p className="mt-2 text-gray-400">{reservation.phone}</p>
+                  <p className="mt-3 text-lg text-gray-400">{reservation.phone}</p>
 
-                  <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="mt-8 grid gap-x-8 gap-y-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
                     <Detail label="Date" value={reservation.reservation_date} />
                     <Detail label="Time" value={reservation.reservation_time} />
                     <Detail label="Guests" value={String(reservation.guests)} />
@@ -396,7 +396,7 @@ export default function ReservationsDashboard({
                   {(() => {
                     if (reservation.status === "completed") {
                       return (
-                        <div className="mt-6 rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/10 px-4 py-3">
+                        <div className="mt-8 rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/10 p-5">
                           <p className="font-semibold text-fuchsia-300">
                             ✓ Completed Reservation
                           </p>
@@ -416,7 +416,7 @@ export default function ReservationsDashboard({
 
                     if (reservation.status === "confirmed") {
                       return (
-                        <div className="mt-6 rounded-xl border border-blue-400/20 bg-blue-400/10 px-4 py-3">
+                        <div className="mt-8 rounded-xl border border-blue-400/20 bg-blue-400/10 p-5">
                           <p className="font-semibold text-blue-300">✓ Confirmed Reservation</p>
                           <p className="mt-1 text-sm text-blue-200/70">
                             Uses {lanesNeeded} {lanesNeeded === 1 ? "lane" : "lanes"}. At least {lanesAvailable} of 8 lanes remain available during this period.
@@ -427,7 +427,7 @@ export default function ReservationsDashboard({
 
                     if (capacity.hasConflict) {
                       return (
-                        <div className="mt-6 rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3">
+                        <div className="mt-8 rounded-xl border border-red-400/20 bg-red-400/10 p-5">
                           <p className="font-semibold text-red-300">⚠ Lane Capacity Conflict</p>
                           <p className="mt-1 text-sm text-red-200/70">
                             This reservation requires {lanesNeeded} {lanesNeeded === 1 ? "lane" : "lanes"}, but only {capacity.minimumLanesAvailable} are available during part of this reservation.
@@ -437,7 +437,7 @@ export default function ReservationsDashboard({
                     }
 
                     return (
-                      <div className="mt-6 rounded-xl border border-green-400/20 bg-green-400/10 px-4 py-3">
+                      <div className="mt-8 rounded-xl border border-green-400/20 bg-green-400/10 p-5">
                         <p className="font-semibold text-green-300">✓ Capacity Available</p>
                         <p className="mt-1 text-sm text-green-200/70">
                           Requires {lanesNeeded} {lanesNeeded === 1 ? "lane" : "lanes"}. At least {capacity.minimumLanesAvailable} of 8 lanes are currently available during this period.
@@ -516,14 +516,14 @@ export default function ReservationsDashboard({
                   )}
                 </div>
 
-                <div className="flex shrink-0 flex-wrap gap-2 lg:flex-col">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 lg:grid-cols-1">
                   <StatusButton label="Confirm" disabled={updatingId === reservation.id} active={reservation.status === "confirmed"} onClick={() => updateStatus(reservation.id, "confirmed")} />
                   <StatusButton label="Complete" disabled={updatingId === reservation.id} active={reservation.status === "completed"} onClick={() => updateStatus(reservation.id, "completed")} />
                   <StatusButton label="Pending" disabled={updatingId === reservation.id} active={reservation.status === "pending"} onClick={() => updateStatus(reservation.id, "pending")} />
                   <StatusButton label="Cancel" disabled={updatingId === reservation.id} active={reservation.status === "cancelled"} onClick={() => updateStatus(reservation.id, "cancelled")} />
                   <button
                     onClick={() => startEditing(reservation)}
-                    className="mt-2 min-w-24 rounded-full border border-fuchsia-400/30 px-5 py-2 text-sm text-fuchsia-300 transition hover:bg-fuchsia-400 hover:text-black lg:mt-3"
+                    className="w-full rounded-full border border-fuchsia-400/30 px-5 py-3 text-sm text-fuchsia-300 transition hover:bg-fuchsia-400 hover:text-black lg:mt-1"
                   >
                     Edit Date & Time
                   </button>
@@ -557,9 +557,9 @@ function Metric({ label, value }: { label: string; value: number }) {
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="text-xs uppercase tracking-[0.2em] text-gray-600">{label}</p>
-      <p className="mt-1 text-white">{value}</p>
+    <div className="min-w-0">
+      <p className="text-xs uppercase tracking-[0.16em] text-gray-600">{label}</p>
+      <p className="mt-1 break-words text-lg font-medium leading-7 text-white">{value}</p>
     </div>
   );
 }
@@ -584,7 +584,7 @@ function StatusButton({ label, active, disabled, onClick }: { label: string; act
     <button
       onClick={onClick}
       disabled={disabled || active}
-      className={`min-w-24 rounded-full px-5 py-2 text-sm transition ${
+      className={`w-full rounded-full px-5 py-3 text-sm transition ${
         active
           ? "bg-white text-black"
           : "border border-white/15 text-gray-300 hover:bg-white hover:text-black"
