@@ -1,0 +1,5 @@
+[[redirects]]
+  from = "https://admin.bobowlingom.com/"
+  to = "/admin/reservations"
+  status = 200
+  force = true
