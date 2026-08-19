@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { authClient } from "@/lib/auth/client";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -17,25 +17,33 @@ export default function AdminLoginPage() {
   ) => {
     event.preventDefault();
 
-    setLoading(true);
-    setError("");
-
-    const supabase = createSupabaseBrowserClient();
-
-    const { error } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-    if (error) {
-      setError("Invalid email or password.");
-      setLoading(false);
+    if (loading) {
       return;
     }
 
-    router.push("/admin/reservations");
-    router.refresh();
+    setLoading(true);
+    setError("");
+
+    try {
+      const result = await authClient.signIn.email({
+        email: email.trim(),
+        password,
+      });
+
+      if (result.error) {
+        throw new Error(
+          result.error.message || "Invalid email or password."
+        );
+      }
+
+      router.replace("/admin/reservations");
+      router.refresh();
+    } catch (loginError) {
+      console.error("Admin login failed:", loginError);
+      setError("Invalid email or password.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -65,6 +73,7 @@ export default function AdminLoginPage() {
             <input
               type="email"
               required
+              autoComplete="email"
               value={email}
               onChange={(event) =>
                 setEmail(event.target.value)
@@ -81,6 +90,7 @@ export default function AdminLoginPage() {
             <input
               type="password"
               required
+              autoComplete="current-password"
               value={password}
               onChange={(event) =>
                 setPassword(event.target.value)

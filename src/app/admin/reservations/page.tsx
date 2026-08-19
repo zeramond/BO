@@ -1,60 +1,41 @@
 import { redirect } from "next/navigation";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getAdminSession } from "@/lib/auth/admin";
+import { getSql } from "@/lib/db";
 import ReservationsDashboard from "./ReservationsDashboard";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function ReservationsPage() {
-  const authClient = await createSupabaseServerClient();
+  const session = await getAdminSession();
 
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-
-  if (
-    !user ||
-    !user.email ||
-    user.email.toLowerCase() !==
-      process.env.ADMIN_EMAIL?.toLowerCase()
-  ) {
+  if (!session) {
     redirect("/admin/login");
   }
 
-  const supabase = createSupabaseAdminClient();
+  const sql = getSql();
 
-  const { data, error } = await supabase
-    .from("reservations")
-    .select(
-      `
-        id,
-        created_at,
-        name,
-        phone,
-        reservation_date,
-        reservation_time,
-        duration_minutes,
-        guests,
-        occasion,
-        notes,
-        status
-      `
-    )
-    .order("created_at", {
-      ascending: false,
-    });
-
-  if (error) {
-    throw new Error(
-      `Unable to load reservations: ${error.message}`
-    );
-  }
+  const data = await sql`
+    SELECT
+      id::text AS id,
+      created_at::text AS created_at,
+      name,
+      phone,
+      reservation_date::text AS reservation_date,
+      reservation_time,
+      duration_minutes,
+      guests,
+      occasion,
+      notes,
+      status
+    FROM reservations
+    ORDER BY created_at DESC
+  `;
 
   return (
     <ReservationsDashboard
-      initialReservations={data ?? []}
+      initialReservations={data as never[]}
     />
   );
 }
