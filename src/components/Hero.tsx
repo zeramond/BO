@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-const reservationUrl =
+const whatsappUrl =
   "https://api.whatsapp.com/send?phone=96891309660&text=I%20would%20like%20to%20ask%20about%20reservations";
 
 export default function Hero() {
@@ -41,14 +41,21 @@ export default function Hero() {
             experiences—all under one roof.
           </p>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:gap-4 md:mt-12">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4 md:mt-12">
             <a
-              href={reservationUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              href="#reservation-form"
               className="fade-up delay-4 inline-flex w-full items-center justify-center rounded-full bg-white px-8 py-4 font-semibold text-black transition-all duration-300 hover:scale-105 sm:w-auto"
             >
               Reserve Now
+            </a>
+
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="fade-up delay-4 inline-flex w-full items-center justify-center rounded-full border border-white/60 bg-black/20 px-8 py-4 font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:bg-white hover:text-black sm:w-auto"
+            >
+              Ask on WhatsApp
             </a>
 
             <a
