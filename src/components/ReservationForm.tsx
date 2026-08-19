@@ -198,6 +198,7 @@ export default function ReservationForm({
             name="name"
             type="text"
             required
+            maxLength={100}
             autoComplete="name"
             placeholder="Your name"
             className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3.5 text-white outline-none transition placeholder:text-gray-600 focus:border-fuchsia-400/60 focus:bg-white/[0.09]"
@@ -216,6 +217,7 @@ export default function ReservationForm({
             name="phone"
             type="tel"
             required
+            maxLength={40}
             autoComplete="tel"
             inputMode="tel"
             placeholder="+968"
@@ -344,6 +346,7 @@ export default function ReservationForm({
             id={`notes-${location}`}
             name="notes"
             rows={4}
+            maxLength={1500}
             placeholder="Anything else we should know?"
             className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3.5 text-white outline-none transition placeholder:text-gray-600 focus:border-fuchsia-400/60 focus:bg-white/[0.09]"
           />

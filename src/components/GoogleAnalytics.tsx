@@ -1,8 +1,17 @@
+"use client";
+
 import Script from "next/script";
+import { usePathname } from "next/navigation";
 
 import { GA_MEASUREMENT_ID } from "@/lib/analytics";
 
 export default function GoogleAnalytics() {
+  const pathname = usePathname();
+
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
+
   return (
     <>
       <Script
