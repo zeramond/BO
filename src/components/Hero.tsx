@@ -43,10 +43,10 @@ export default function Hero() {
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4 md:mt-12">
             <a
-              href="#reservation-form"
+              href="/reserve"
               className="fade-up delay-4 inline-flex w-full items-center justify-center rounded-full bg-white px-8 py-4 font-semibold text-black transition-all duration-300 hover:scale-105 sm:w-auto"
             >
-              Reserve Now
+              Check Pricing & Availability
             </a>
 
             <a

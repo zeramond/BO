@@ -1,142 +1,20 @@
 "use client";
 
-import Image from "next/image";
 import { motion } from "framer-motion";
-import { FormEvent, useEffect, useState } from "react";
-import Script from "next/script";
-declare global {
-  interface Window {
-    turnstile?: {
-      reset: () => void;
-    };
-  }
-}
+import Image from "next/image";
+
+import ReservationForm from "@/components/ReservationForm";
 
 const mapsUrl = "https://maps.app.goo.gl/fBZoQBFcasWKdwHo9";
-
-const reservationTimes = [
-  "10:00 AM",
-  "10:30 AM",
-  "11:00 AM",
-  "11:30 AM",
-  "12:00 PM",
-  "12:30 PM",
-  "1:00 PM",
-  "1:30 PM",
-  "2:00 PM",
-  "2:30 PM",
-  "3:00 PM",
-  "3:30 PM",
-  "4:00 PM",
-  "4:30 PM",
-  "5:00 PM",
-  "5:30 PM",
-  "6:00 PM",
-  "6:30 PM",
-  "7:00 PM",
-  "7:30 PM",
-  "8:00 PM",
-  "8:30 PM",
-  "9:00 PM",
-  "9:30 PM",
-  "10:00 PM",
-  "10:30 PM",
-  "11:00 PM",
-  "11:30 PM",
-  "12:00 AM",
-  "12:30 AM",
-  "1:00 AM",
-  "1:30 AM",
-];
-
-const reservationDurations = [
-  { label: "1 Hour", value: 60 },
-  { label: "1.5 Hours", value: 90 },
-  { label: "2 Hours", value: 120 },
-  { label: "2.5 Hours", value: 150 },
-  { label: "3 Hours", value: 180 },
-];
+const whatsappUrl =
+  "https://api.whatsapp.com/send?phone=96891309660&text=I%20would%20like%20to%20check%20bowling%20pricing%20and%20availability";
 
 export default function Contact() {
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState(false);
-  const [minDate, setMinDate] = useState("");
-
-  useEffect(() => {
-    const today = new Date();
-
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-
-    setMinDate(`${year}-${month}-${day}`);
-  }, []);
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-
-    const reservation = {
-      name: formData.get("name"),
-      phone: formData.get("phone"),
-      date: formData.get("date"),
-      time: formData.get("time"),
-      duration: Number(formData.get("duration")),
-      guests: Number(formData.get("guests")),
-      occasion: formData.get("occasion"),
-      notes: formData.get("notes"),
-      website: formData.get("website"),
-      turnstileToken: formData.get("cf-turnstile-response"),
-    };
-
-    setSubmitting(true);
-    setSubmitted(false);
-    setError(false);
-
-    try {
-      const response = await fetch("/api/reservations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(reservation),
-      });
-
-      if (!response.ok) {
-        const result = await response.json();
-
-        throw new Error(
-          result.error || "Reservation submission failed"
-        );
-      }
-
-      form.reset();
-      setSubmitted(true);
-    } catch (error) {
-      console.error(error);
-      setError(true);
-    } finally {
-      setSubmitting(false);
-
-      // Turnstile tokens are single-use.
-      // Generate a fresh token for the next submission attempt.
-      window.turnstile?.reset();
-    }
-  };
-
   return (
     <section
       id="contact"
       className="relative min-h-screen overflow-hidden px-6 py-28 text-white md:px-8 md:py-36"
     >
-      <Script
-        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-        strategy="afterInteractive"
-      />
-
       <Image
         src="/images/lanes_wide4.jpg"
         alt="BO Bowling lanes"
@@ -147,7 +25,6 @@ export default function Contact() {
 
       <div className="absolute inset-0 bg-black/75" />
       <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/65 to-black/40" />
-
       <div className="pointer-events-none absolute -left-40 top-1/3 h-[600px] w-[600px] rounded-full bg-fuchsia-600/10 blur-[160px]" />
 
       <div className="relative z-10 mx-auto grid min-h-[75vh] max-w-7xl items-center gap-16 lg:grid-cols-[1fr_0.9fr]">
@@ -161,7 +38,7 @@ export default function Contact() {
           }}
         >
           <p className="mb-6 text-xs uppercase tracking-[0.45em] text-fuchsia-300 sm:text-sm">
-            BO BOWLING · SOHAR
+            BO Bowling · Sohar
           </p>
 
           <h2 className="text-6xl font-bold leading-[0.95] sm:text-7xl md:text-8xl">
@@ -171,22 +48,57 @@ export default function Contact() {
           </h2>
 
           <p className="mt-8 max-w-xl text-lg leading-8 text-gray-300">
-            Tell us what you have in mind and our team will contact you with
-            availability, pricing, and the best options for your group.
+            Bowling starts from 10.5 OMR per lane/hour. Tell us your preferred
+            time and our team will respond within one hour during opening
+            hours.
           </p>
 
-          <a
-            href={mapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-10 inline-flex rounded-full border border-white/30 bg-black/20 px-7 py-3.5 font-semibold text-white backdrop-blur-sm transition duration-300 hover:border-white hover:bg-white hover:text-black"
-          >
-            Get Directions
-          </a>
+          <dl className="mt-9 grid max-w-xl gap-4 sm:grid-cols-2">
+            <Detail label="Opening hours" value="10:00 AM–2:00 AM" />
+            <Detail label="Location" value="Al Ghushbah, behind City Center" />
+          </dl>
+
+          <div className="mt-9 flex flex-wrap gap-3">
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex rounded-full border border-white/30 bg-black/20 px-6 py-3.5 font-semibold text-white backdrop-blur-sm transition duration-300 hover:border-white hover:bg-white hover:text-black"
+            >
+              Reservations & WhatsApp
+            </a>
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex rounded-full border border-white/30 bg-black/20 px-6 py-3.5 font-semibold text-white backdrop-blur-sm transition duration-300 hover:border-white hover:bg-white hover:text-black"
+            >
+              Get Directions
+            </a>
+          </div>
+
+          <div className="mt-7 space-y-2 text-sm text-gray-400">
+            <p>
+              Reservations & WhatsApp:{" "}
+              <a className="text-white hover:text-fuchsia-300" href="tel:+96891309660">
+                +968 9130 9660
+              </a>
+            </p>
+            <p>
+              Reception:{" "}
+              <a className="text-white hover:text-fuchsia-300" href="tel:+96894009477">
+                +968 9400 9477
+              </a>
+            </p>
+          </div>
+
+          <p className="mt-8 max-w-xl border-t border-white/10 pt-7 text-sm leading-7 text-gray-400">
+            Complete your visit with billiards, PlayStation, foosball, and our
+            café—all under one roof.
+          </p>
         </motion.div>
 
         <motion.div
-          id="reservation-form"
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
@@ -195,204 +107,21 @@ export default function Contact() {
             delay: 0.15,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className="scroll-mt-28 rounded-[28px] border border-white/10 bg-black/45 p-6 shadow-2xl backdrop-blur-xl sm:p-8"
         >
-          <div className="mb-8">
-            <p className="text-xs uppercase tracking-[0.4em] text-gray-500">
-              Booking & Pricing Inquiry
-            </p>
-
-            <h3 className="mt-3 text-3xl font-semibold">
-              Tell Us What You’re Planning
-            </h3>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div
-              aria-hidden="true"
-              className="absolute -left-[9999px] h-px w-px overflow-hidden"
-            >
-              <label htmlFor="website">Website</label>
-              <input
-                id="website"
-                name="website"
-                type="text"
-                tabIndex={-1}
-                autoComplete="off"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="name" className="mb-2 block text-sm text-gray-300">
-                Full Name
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                required
-                placeholder="Your name"
-                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3.5 text-white outline-none transition placeholder:text-gray-600 focus:border-fuchsia-400/60 focus:bg-white/[0.09]"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="phone" className="mb-2 block text-sm text-gray-300">
-                Phone Number
-              </label>
-              <input
-                id="phone"
-                name="phone"
-                type="tel"
-                required
-                placeholder="+968"
-                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3.5 text-white outline-none transition placeholder:text-gray-600 focus:border-fuchsia-400/60 focus:bg-white/[0.09]"
-              />
-            </div>
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <label htmlFor="date" className="mb-2 block text-sm text-gray-300">
-                  Preferred Date
-                </label>
-                <input
-                  id="date"
-                  name="date"
-                  type="date"
-                  min={minDate}
-                  required
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3.5 text-white outline-none transition focus:border-fuchsia-400/60 focus:bg-white/[0.09]"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="time" className="mb-2 block text-sm text-gray-300">
-                  Preferred Time
-                </label>
-                <select
-                  id="time"
-                  name="time"
-                  required
-                  defaultValue=""
-                  className="w-full rounded-xl border border-white/10 bg-[#171717] px-4 py-3.5 text-white outline-none transition focus:border-fuchsia-400/60"
-                >
-                  <option value="" disabled>
-                    Select a time
-                  </option>
-                  {reservationTimes.map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <label htmlFor="guests" className="mb-2 block text-sm text-gray-300">
-                  Number of Guests
-                </label>
-                <input
-                  id="guests"
-                  name="guests"
-                  type="number"
-                  min="1"
-                  max="64"
-                  required
-                  placeholder="4"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3.5 text-white outline-none transition placeholder:text-gray-600 focus:border-fuchsia-400/60 focus:bg-white/[0.09]"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="duration" className="mb-2 block text-sm text-gray-300">
-                  Reservation Duration
-                </label>
-                <select
-                  id="duration"
-                  name="duration"
-                  required
-                  defaultValue="60"
-                  className="w-full rounded-xl border border-white/10 bg-[#171717] px-4 py-3.5 text-white outline-none transition focus:border-fuchsia-400/60"
-                >
-                  {reservationDurations.map((duration) => (
-                    <option key={duration.value} value={duration.value}>
-                      {duration.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="occasion" className="mb-2 block text-sm text-gray-300">
-                Occasion
-              </label>
-              <select
-                id="occasion"
-                name="occasion"
-                defaultValue="General Visit"
-                className="w-full rounded-xl border border-white/10 bg-[#171717] px-4 py-3.5 text-white outline-none transition focus:border-fuchsia-400/60"
-              >
-                <option>General Visit</option>
-                <option>Birthday</option>
-                <option>Corporate Event</option>
-                <option>School / University</option>
-                <option>Group Event</option>
-                <option>Other</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="notes" className="mb-2 block text-sm text-gray-300">
-                Additional Notes
-              </label>
-              <textarea
-                id="notes"
-                name="notes"
-                rows={4}
-                placeholder="Anything else we should know?"
-                className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3.5 text-white outline-none transition placeholder:text-gray-600 focus:border-fuchsia-400/60 focus:bg-white/[0.09]"
-              />
-            </div>
-
-            <div className="flex justify-center py-2">
-              <div
-                className="cf-turnstile"
-                data-sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-                data-theme="dark"
-                data-size="flexible"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full rounded-full bg-white px-8 py-4 font-semibold text-black transition duration-300 hover:scale-[1.02] hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <p className="text-center text-xs leading-5 text-gray-500">
-                No commitment required. This is only an inquiry — our team will
-                contact you with pricing, availability, and booking options.
-              </p>
-              {submitting ? "Sending Request..." : "Request Pricing & Availability"}
-            </button>
-
-            {submitted && (
-              <div className="rounded-xl border border-green-400/20 bg-green-400/10 px-4 py-3 text-center text-sm text-green-300">
-                ✓ Reservation request sent. Our team will contact you to confirm
-                availability.
-              </div>
-            )}
-
-            {error && (
-              <div className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-center text-sm text-red-300">
-                Something went wrong. Please try again.
-              </div>
-            )}
-          </form>
+          <ReservationForm />
         </motion.div>
       </div>
     </section>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/25 p-5 backdrop-blur-sm">
+      <dt className="text-xs uppercase tracking-[0.25em] text-gray-500">
+        {label}
+      </dt>
+      <dd className="mt-2 font-semibold text-white">{value}</dd>
+    </div>
   );
 }

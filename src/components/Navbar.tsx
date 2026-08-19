@@ -69,10 +69,10 @@ export default function Navbar() {
             </a>
 
             <a
-              href="#reservation-form"
+              href="/reserve"
               className="rounded-full border border-white px-5 py-2 transition hover:bg-white hover:text-black"
             >
-              Reserve
+              Check Availability
             </a>
           </div>
 
@@ -150,11 +150,11 @@ export default function Navbar() {
 
           <div className="mt-12">
             <a
-              href="#reservation-form"
+              href="/reserve"
               onClick={closeMenu}
               className="inline-flex rounded-full bg-white px-8 py-4 font-semibold text-black"
             >
-              Make a Reservation
+              Check Pricing & Availability
             </a>
           </div>
 
@@ -163,6 +163,15 @@ export default function Navbar() {
           </p>
         </div>
       </div>
+
+      <a
+        href="/reserve"
+        className={`fixed bottom-4 left-4 right-4 z-[80] flex items-center justify-center rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-black shadow-2xl transition md:hidden ${
+          menuOpen ? "pointer-events-none translate-y-4 opacity-0" : "opacity-100"
+        }`}
+      >
+        Check Pricing & Availability
+      </a>
     </>
   );
 }
