@@ -1,7 +1,9 @@
 "use client";
 
 import Script from "next/script";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
+
+import { trackEvent } from "@/lib/analytics";
 
 declare global {
   interface Window {
@@ -65,6 +67,19 @@ export default function ReservationForm({
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(false);
   const [minDate] = useState(() => getOmanDate(new Date()));
+  const formStarted = useRef(false);
+
+  const handleFormStart = () => {
+    if (formStarted.current) {
+      return;
+    }
+
+    formStarted.current = true;
+    trackEvent("reservation_form_start", {
+      form_name: "bowling_reservation",
+      form_location: location,
+    });
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -106,9 +121,18 @@ export default function ReservationForm({
 
       form.reset();
       setSubmitted(true);
+      trackEvent("generate_lead", {
+        form_name: "bowling_reservation",
+        form_location: location,
+        service: "bowling",
+      });
     } catch (submissionError) {
       console.error(submissionError);
       setError(true);
+      trackEvent("reservation_submit_error", {
+        form_name: "bowling_reservation",
+        form_location: location,
+      });
     } finally {
       setSubmitting(false);
       window.turnstile?.reset();
@@ -140,7 +164,11 @@ export default function ReservationForm({
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form
+        onSubmit={handleSubmit}
+        onFocusCapture={handleFormStart}
+        className="space-y-5"
+      >
         <div
           aria-hidden="true"
           className="absolute -left-[9999px] h-px w-px overflow-hidden"

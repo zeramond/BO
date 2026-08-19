@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import TrackedReserveLink from "@/components/TrackedReserveLink";
+
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -68,12 +70,12 @@ export default function Navbar() {
               Contact
             </a>
 
-            <a
-              href="/reserve"
+            <TrackedReserveLink
+              placement="desktop_nav"
               className="rounded-full border border-white px-5 py-2 transition hover:bg-white hover:text-black"
             >
               Check Availability
-            </a>
+            </TrackedReserveLink>
           </div>
 
           {/* MOBILE BUTTON */}
@@ -149,13 +151,13 @@ export default function Navbar() {
           </div>
 
           <div className="mt-12">
-            <a
-              href="/reserve"
+            <TrackedReserveLink
+              placement="mobile_menu"
               onClick={closeMenu}
               className="inline-flex rounded-full bg-white px-8 py-4 font-semibold text-black"
             >
               Check Pricing & Availability
-            </a>
+            </TrackedReserveLink>
           </div>
 
           <p className="mt-16 text-xs uppercase tracking-[0.4em] text-gray-600">
@@ -164,14 +166,14 @@ export default function Navbar() {
         </div>
       </div>
 
-      <a
-        href="/reserve"
+      <TrackedReserveLink
+        placement="mobile_sticky"
         className={`fixed bottom-4 left-4 right-4 z-[80] flex items-center justify-center rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-black shadow-2xl transition md:hidden ${
           menuOpen ? "pointer-events-none translate-y-4 opacity-0" : "opacity-100"
         }`}
       >
         Check Pricing & Availability
-      </a>
+      </TrackedReserveLink>
     </>
   );
 }

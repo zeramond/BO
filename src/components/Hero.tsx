@@ -1,5 +1,7 @@
 import Image from "next/image";
 
+import TrackedReserveLink from "@/components/TrackedReserveLink";
+
 const whatsappUrl =
   "https://api.whatsapp.com/send?phone=96891309660&text=I%20would%20like%20to%20ask%20about%20reservations";
 
@@ -42,12 +44,12 @@ export default function Hero() {
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4 md:mt-12">
-            <a
-              href="/reserve"
+            <TrackedReserveLink
+              placement="hero"
               className="fade-up delay-4 inline-flex w-full items-center justify-center rounded-full bg-white px-8 py-4 font-semibold text-black transition-all duration-300 hover:scale-105 sm:w-auto"
             >
               Check Pricing & Availability
-            </a>
+            </TrackedReserveLink>
 
             <a
               href={whatsappUrl}
