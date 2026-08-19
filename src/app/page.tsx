@@ -11,11 +11,11 @@ export default function Home() {
 
       <main className="bg-black">
         <section className="relative grid">
-          <div className="sticky top-0 col-start-1 row-start-1 h-screen self-start">
+          <div className="sticky top-0 z-20 col-start-1 row-start-1 h-screen self-start">
             <Hero />
           </div>
 
-          <div className="pointer-events-none relative z-10 col-start-1 row-start-1">
+          <div className="relative col-start-1 row-start-1">
             <SceneManager />
           </div>
         </section>
