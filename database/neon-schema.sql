@@ -9,8 +9,17 @@ CREATE TABLE IF NOT EXISTS reservations (
   guests integer NOT NULL,
   occasion text,
   notes text,
-  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
-  source text NOT NULL DEFAULT 'website' CHECK (source IN ('website', 'manual'))
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'completed', 'cancelled')),
+  source text NOT NULL DEFAULT 'website' CHECK (source IN ('website', 'manual')),
+  utm_source text,
+  utm_medium text,
+  utm_campaign text,
+  utm_term text,
+  utm_content text,
+  landing_page text,
+  referrer text,
+  confirmed_at timestamptz,
+  completed_at timestamptz
 );
 
 CREATE INDEX IF NOT EXISTS reservations_created_at_idx

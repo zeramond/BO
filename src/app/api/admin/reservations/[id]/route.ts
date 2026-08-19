@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth/admin";
 import { getSql } from "@/lib/db";
 
-const allowedStatuses = new Set(["pending", "confirmed", "cancelled"]);
+const allowedStatuses = new Set(["pending", "confirmed", "completed", "cancelled"]);
 const allowedTimes = new Set([
   "10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","12:30 PM","1:00 PM","1:30 PM","2:00 PM","2:30 PM","3:00 PM","3:30 PM","4:00 PM","4:30 PM","5:00 PM","5:30 PM","6:00 PM","6:30 PM","7:00 PM","7:30 PM","8:00 PM","8:30 PM","9:00 PM","9:30 PM","10:00 PM","10:30 PM","11:00 PM","11:30 PM","12:00 AM","12:30 AM","1:00 AM","1:30 AM"
 ]);
@@ -69,7 +69,15 @@ export async function PATCH(
         status = COALESCE(${status}, status),
         reservation_date = COALESCE(${reservationDate}::date, reservation_date),
         reservation_time = COALESCE(${reservationTime}, reservation_time),
-        duration_minutes = COALESCE(${duration}, duration_minutes)
+        duration_minutes = COALESCE(${duration}, duration_minutes),
+        confirmed_at = CASE
+          WHEN ${status} = 'confirmed' THEN COALESCE(confirmed_at, now())
+          ELSE confirmed_at
+        END,
+        completed_at = CASE
+          WHEN ${status} = 'completed' THEN COALESCE(completed_at, now())
+          ELSE completed_at
+        END
       WHERE id::text = ${id}
       RETURNING
         id::text AS id,
@@ -82,7 +90,17 @@ export async function PATCH(
         guests,
         occasion,
         notes,
-        status
+        status,
+        source,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        utm_term,
+        utm_content,
+        landing_page,
+        referrer,
+        confirmed_at::text AS confirmed_at,
+        completed_at::text AS completed_at
     `;
 
     if (rows.length === 0) {

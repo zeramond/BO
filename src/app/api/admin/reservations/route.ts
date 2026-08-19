@@ -53,9 +53,9 @@ export async function POST(request: Request) {
     }
 
     const rows = await sql`
-      INSERT INTO reservations (name, phone, reservation_date, reservation_time, duration_minutes, guests, occasion, notes, status, source)
-      VALUES (${name}, ${phone}, ${reservationDate}::date, ${reservationTime}, ${duration}, ${guests}, ${occasion || null}, ${notes || null}, 'confirmed', 'manual')
-      RETURNING id::text AS id, created_at::text AS created_at, name, phone, reservation_date::text AS reservation_date, reservation_time, duration_minutes, guests, occasion, notes, status, source
+      INSERT INTO reservations (name, phone, reservation_date, reservation_time, duration_minutes, guests, occasion, notes, status, source, confirmed_at)
+      VALUES (${name}, ${phone}, ${reservationDate}::date, ${reservationTime}, ${duration}, ${guests}, ${occasion || null}, ${notes || null}, 'confirmed', 'manual', now())
+      RETURNING id::text AS id, created_at::text AS created_at, name, phone, reservation_date::text AS reservation_date, reservation_time, duration_minutes, guests, occasion, notes, status, source, confirmed_at::text AS confirmed_at, completed_at::text AS completed_at
     `;
 
     return NextResponse.json({ success: true, reservation: rows[0] }, { status: 201 });

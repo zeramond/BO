@@ -68,6 +68,13 @@ export async function POST(request: Request) {
     const notes = String(body.notes ?? "").trim();
     const website = String(body.website ?? "").trim();
     const turnstileToken = String(body.turnstileToken ?? "").trim();
+    const utmSource = optionalText(body.utmSource, 200);
+    const utmMedium = optionalText(body.utmMedium, 200);
+    const utmCampaign = optionalText(body.utmCampaign, 200);
+    const utmTerm = optionalText(body.utmTerm, 200);
+    const utmContent = optionalText(body.utmContent, 200);
+    const landingPage = optionalText(body.landingPage, 1000);
+    const referrer = optionalText(body.referrer, 1000);
 
     if (website) {
       console.warn("Honeypot blocked a reservation submission.");
@@ -163,7 +170,14 @@ export async function POST(request: Request) {
         occasion,
         notes,
         status,
-        source
+        source,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        utm_term,
+        utm_content,
+        landing_page,
+        referrer
       )
       VALUES (
         ${name},
@@ -175,7 +189,14 @@ export async function POST(request: Request) {
         ${occasion || null},
         ${notes || null},
         'pending',
-        'website'
+        'website',
+        ${utmSource},
+        ${utmMedium},
+        ${utmCampaign},
+        ${utmTerm},
+        ${utmContent},
+        ${landingPage},
+        ${referrer}
       )
       RETURNING id::text AS id
     `;
@@ -209,6 +230,8 @@ export async function POST(request: Request) {
                 <p><strong>Guests:</strong><br />${guests}</p>
                 <p><strong>Occasion:</strong><br />${escapeHtml(occasion || "General Visit")}</p>
                 <p><strong>Notes:</strong><br />${escapeHtml(notes || "None")}</p>
+                <p><strong>Lead source:</strong><br />${escapeHtml(formatLeadSource(utmSource, utmMedium, referrer))}</p>
+                <p><strong>Campaign:</strong><br />${escapeHtml(utmCampaign || "None")}</p>
               </div>
               <p style="margin-top: 24px; color: #666666; font-size: 13px;">
                 Reservation ID: ${reservationId}
@@ -250,6 +273,31 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+function optionalText(value: unknown, limit: number) {
+  const normalized = String(value ?? "").trim().slice(0, limit);
+  return normalized || null;
+}
+
+function formatLeadSource(
+  utmSource: string | null,
+  utmMedium: string | null,
+  referrer: string | null,
+) {
+  if (utmSource) {
+    return utmMedium ? `${utmSource} / ${utmMedium}` : utmSource;
+  }
+
+  if (referrer) {
+    try {
+      return new URL(referrer).hostname;
+    } catch {
+      return "Referral";
+    }
+  }
+
+  return "Direct website visit";
 }
 
 function escapeHtml(value: string) {

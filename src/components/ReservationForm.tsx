@@ -4,6 +4,7 @@ import Script from "next/script";
 import { FormEvent, useRef, useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
+import { captureAttribution } from "@/lib/attribution";
 
 declare global {
   interface Window {
@@ -86,6 +87,7 @@ export default function ReservationForm({
 
     const form = event.currentTarget;
     const formData = new FormData(form);
+    const attribution = captureAttribution();
 
     const reservation = {
       name: formData.get("name"),
@@ -99,6 +101,7 @@ export default function ReservationForm({
       website: formData.get("website"),
       turnstileToken: formData.get("cf-turnstile-response"),
       formLocation: location,
+      ...attribution,
     };
 
     setSubmitting(true);

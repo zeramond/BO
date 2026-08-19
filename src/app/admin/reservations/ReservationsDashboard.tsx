@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/client";
 import {
@@ -9,7 +9,7 @@ import {
 } from "@/lib/reservations/capacity";
 import Link from "next/link";
 
-type Status = "pending" | "confirmed" | "cancelled";
+type Status = "pending" | "confirmed" | "completed" | "cancelled";
 
 type Reservation = {
   id: string;
@@ -23,10 +23,21 @@ type Reservation = {
   occasion: string | null;
   notes: string | null;
   status: Status;
+  source: "website" | "manual";
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_term: string | null;
+  utm_content: string | null;
+  landing_page: string | null;
+  referrer: string | null;
+  confirmed_at: string | null;
+  completed_at: string | null;
 };
 
 type Props = {
   initialReservations: Reservation[];
+  weekStart: string;
 };
 
 const reservationTimes = [
@@ -71,13 +82,13 @@ const reservationDurations = [
   { label: "3 Hours", value: 180 },
 ];
 
-export default function ReservationsDashboard({ initialReservations }: Props) {
+export default function ReservationsDashboard({
+  initialReservations,
+  weekStart,
+}: Props) {
   const router = useRouter();
 
   const [reservations, setReservations] = useState(initialReservations);
-  useEffect(() => {
-    setReservations(initialReservations);
-  }, [initialReservations]);
 
   const [filter, setFilter] = useState<"all" | Status>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -101,8 +112,29 @@ export default function ReservationsDashboard({ initialReservations }: Props) {
     confirmed: reservations.filter(
       (reservation) => reservation.status === "confirmed",
     ).length,
+    completed: reservations.filter(
+      (reservation) => reservation.status === "completed",
+    ).length,
     cancelled: reservations.filter(
       (reservation) => reservation.status === "cancelled",
+    ).length,
+  };
+
+  const weekStartTime = new Date(weekStart).getTime();
+  const weeklyCounts = {
+    submissions: reservations.filter(
+      (reservation) =>
+        new Date(reservation.created_at).getTime() >= weekStartTime,
+    ).length,
+    confirmed: reservations.filter(
+      (reservation) =>
+        reservation.confirmed_at &&
+        new Date(reservation.confirmed_at).getTime() >= weekStartTime,
+    ).length,
+    completed: reservations.filter(
+      (reservation) =>
+        reservation.completed_at &&
+        new Date(reservation.completed_at).getTime() >= weekStartTime,
     ).length,
   };
 
@@ -168,9 +200,13 @@ export default function ReservationsDashboard({ initialReservations }: Props) {
         throw new Error("Unable to update reservation.");
       }
 
+      const result = await response.json();
+
       setReservations((current) =>
         current.map((reservation) =>
-          reservation.id === id ? { ...reservation, status } : reservation,
+          reservation.id === id
+            ? { ...reservation, ...result.reservation }
+            : reservation,
         ),
       );
     } catch (error) {
@@ -279,14 +315,35 @@ export default function ReservationsDashboard({ initialReservations }: Props) {
           </div>
         </header>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+        <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.025] p-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">
+                Last 7 Days
+              </p>
+              <h2 className="mt-2 text-xl font-semibold">Reservation Funnel</h2>
+            </div>
+            <p className="text-sm text-gray-500">
+              Reserve-page visits are available in GA4.
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <Metric label="Form submissions" value={weeklyCounts.submissions} />
+            <Metric label="Confirmed" value={weeklyCounts.confirmed} />
+            <Metric label="Completed" value={weeklyCounts.completed} />
+          </div>
+        </section>
+
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <CountCard label="Pending" count={counts.pending} onClick={() => setFilter("pending")} />
           <CountCard label="Confirmed" count={counts.confirmed} onClick={() => setFilter("confirmed")} />
+          <CountCard label="Completed" count={counts.completed} onClick={() => setFilter("completed")} />
           <CountCard label="Cancelled" count={counts.cancelled} onClick={() => setFilter("cancelled")} />
         </div>
 
         <div className="mt-8 flex flex-wrap gap-2">
-          {(["all", "pending", "confirmed", "cancelled"] as const).map(
+          {(["all", "pending", "confirmed", "completed", "cancelled"] as const).map(
             (status) => (
               <button
                 key={status}
@@ -330,9 +387,26 @@ export default function ReservationsDashboard({ initialReservations }: Props) {
                     <Detail label="Guests" value={String(reservation.guests)} />
                     <Detail label="Occasion" value={reservation.occasion || "General Visit"} />
                     <Detail label="Duration" value={formatDuration(reservation.duration_minutes)} />
+                    <Detail label="Lead source" value={formatLeadSource(reservation)} />
+                    {reservation.utm_campaign && (
+                      <Detail label="Campaign" value={reservation.utm_campaign} />
+                    )}
                   </div>
 
                   {(() => {
+                    if (reservation.status === "completed") {
+                      return (
+                        <div className="mt-6 rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/10 px-4 py-3">
+                          <p className="font-semibold text-fuchsia-300">
+                            ✓ Completed Reservation
+                          </p>
+                          <p className="mt-1 text-sm text-fuchsia-200/70">
+                            This visit is included in the completed-reservation funnel count.
+                          </p>
+                        </div>
+                      );
+                    }
+
                     const capacity = getCapacityInfo(reservation);
                     const lanesNeeded = getLanesRequired(reservation.guests);
                     const lanesAvailable =
@@ -444,6 +518,7 @@ export default function ReservationsDashboard({ initialReservations }: Props) {
 
                 <div className="flex shrink-0 flex-wrap gap-2 lg:flex-col">
                   <StatusButton label="Confirm" disabled={updatingId === reservation.id} active={reservation.status === "confirmed"} onClick={() => updateStatus(reservation.id, "confirmed")} />
+                  <StatusButton label="Complete" disabled={updatingId === reservation.id} active={reservation.status === "completed"} onClick={() => updateStatus(reservation.id, "completed")} />
                   <StatusButton label="Pending" disabled={updatingId === reservation.id} active={reservation.status === "pending"} onClick={() => updateStatus(reservation.id, "pending")} />
                   <StatusButton label="Cancel" disabled={updatingId === reservation.id} active={reservation.status === "cancelled"} onClick={() => updateStatus(reservation.id, "cancelled")} />
                   <button
@@ -471,6 +546,15 @@ function CountCard({ label, count, onClick }: { label: string; count: number; on
   );
 }
 
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/30 px-5 py-4">
+      <p className="text-sm text-gray-500">{label}</p>
+      <p className="mt-1 text-3xl font-semibold">{value}</p>
+    </div>
+  );
+}
+
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -484,6 +568,7 @@ function StatusBadge({ status }: { status: Status }) {
   const styles = {
     pending: "border-yellow-400/20 bg-yellow-400/10 text-yellow-300",
     confirmed: "border-green-400/20 bg-green-400/10 text-green-300",
+    completed: "border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-300",
     cancelled: "border-red-400/20 bg-red-400/10 text-red-300",
   };
 
@@ -517,4 +602,26 @@ function formatDuration(minutes: number) {
   if (minutes === 150) return "2.5 Hours";
   if (minutes === 180) return "3 Hours";
   return `${minutes} Minutes`;
+}
+
+function formatLeadSource(reservation: Reservation) {
+  if (reservation.source === "manual") {
+    return "Manual entry";
+  }
+
+  if (reservation.utm_source) {
+    return reservation.utm_medium
+      ? `${reservation.utm_source} / ${reservation.utm_medium}`
+      : reservation.utm_source;
+  }
+
+  if (reservation.referrer) {
+    try {
+      return new URL(reservation.referrer).hostname;
+    } catch {
+      return "Referral";
+    }
+  }
+
+  return "Website · direct";
 }
