@@ -4,9 +4,14 @@ export async function getAdminSession() {
   const { data: session } = await auth.getSession();
 
   const email = session?.user?.email?.trim().toLowerCase();
-  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const adminEmails = new Set(
+    (process.env.ADMIN_EMAIL ?? "")
+      .split(",")
+      .map((configuredEmail) => configuredEmail.trim().toLowerCase())
+      .filter(Boolean)
+  );
 
-  if (!email || !adminEmail || email !== adminEmail) {
+  if (!email || !adminEmails.has(email)) {
     return null;
   }
 
