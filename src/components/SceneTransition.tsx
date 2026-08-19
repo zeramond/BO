@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 
 type SceneTransitionProps = {
   children: ReactNode;
@@ -21,7 +21,9 @@ export default function SceneTransition({
 }: SceneTransitionProps) {
   const scenes = Children.toArray(children);
   const sectionRef = useRef<HTMLElement>(null);
+  const targetIndexRef = useRef(-1);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [nextIndex, setNextIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -35,7 +37,8 @@ export default function SceneTransition({
       const introDistance = window.innerHeight * INTRO_HOLD;
 
       if (distanceIntoSection < introDistance) {
-        setActiveIndex(-1);
+        targetIndexRef.current = -1;
+        setNextIndex(activeIndex === -1 ? null : -1);
         return;
       }
 
@@ -56,9 +59,8 @@ export default function SceneTransition({
         scenes.length - 1,
       );
 
-      setActiveIndex((currentIndex) =>
-        currentIndex === newIndex ? currentIndex : newIndex,
-      );
+      targetIndexRef.current = newIndex;
+      setNextIndex(activeIndex === newIndex ? null : newIndex);
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -70,7 +72,20 @@ export default function SceneTransition({
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", handleScroll);
     };
-  }, [scenes.length]);
+  }, [activeIndex, scenes.length]);
+
+  const completeTransition = (index: number) => {
+    if (targetIndexRef.current !== index) return;
+
+    setActiveIndex(index);
+    setNextIndex(null);
+  };
+
+  const isTransitioning = nextIndex !== null && nextIndex !== activeIndex;
+  const currentScene = activeIndex >= 0 ? scenes[activeIndex] : null;
+  const incomingIndex =
+    nextIndex !== null && nextIndex >= 0 ? nextIndex : null;
+  const nextScene = incomingIndex !== null ? scenes[incomingIndex] : null;
 
   return (
     <section
@@ -83,42 +98,74 @@ export default function SceneTransition({
     >
       <div
         className={`sticky top-0 h-screen overflow-hidden transition-[z-index] ${
-          activeIndex >= 0
+          activeIndex >= 0 || nextScene
             ? "pointer-events-auto z-30"
             : "pointer-events-none z-0"
         }`}
       >
-        <AnimatePresence mode="sync">
-          {activeIndex >= 0 && (
-            <motion.div
-              key={`scene-${activeIndex}`}
-              className="absolute inset-0 overflow-hidden"
-              initial={{
-                opacity: 0,
-                scale: 1.08,
-                filter: "blur(16px)",
-              }}
-              animate={{
-                opacity: 1,
-                scale: 1,
-                filter: "blur(0px)",
-              }}
-              exit={{
-                opacity: 0,
-                scale: 1.06,
-                filter: "blur(10px)",
-              }}
-              transition={{
-                duration: 1.5,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-            >
-              <div className="h-screen overflow-hidden">
-                {scenes[activeIndex]}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {currentScene && (
+          <motion.div
+            key={`scene-${activeIndex}`}
+            className="absolute inset-0 overflow-hidden"
+            initial={false}
+            animate={
+              isTransitioning
+                ? {
+                    opacity: 0,
+                    scale: 1.06,
+                    filter: "blur(10px)",
+                  }
+                : {
+                    opacity: 1,
+                    scale: 1,
+                    filter: "blur(0px)",
+                  }
+            }
+            transition={{
+              duration: 1.5,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            onAnimationComplete={
+              nextIndex === -1
+                ? () => completeTransition(-1)
+                : undefined
+            }
+          >
+            <div className="h-screen overflow-hidden">
+              {currentScene}
+            </div>
+          </motion.div>
+        )}
+
+        {nextScene && incomingIndex !== activeIndex && (
+          <motion.div
+            key={`scene-${incomingIndex}`}
+            className="absolute inset-0 overflow-hidden"
+            initial={{
+              opacity: 0,
+              scale: 1.08,
+              filter: "blur(16px)",
+            }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              filter: "blur(0px)",
+            }}
+            transition={{
+              duration: 1.5,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            onAnimationComplete={() => {
+              if (incomingIndex !== null) {
+                completeTransition(incomingIndex);
+              }
+            }}
+          >
+            <div className="h-screen overflow-hidden">
+              {nextScene}
+            </div>
+          </motion.div>
+        )}
       </div>
     </section>
   );
