@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/client";
 
@@ -83,9 +84,18 @@ export default function AdminLoginPage() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm text-gray-300">
-              Password
-            </label>
+            <div className="mb-2 flex items-center justify-between gap-4">
+              <label className="block text-sm text-gray-300">
+                Password
+              </label>
+
+              <Link
+                href="/admin/forgot-password"
+                className="text-sm text-fuchsia-300 transition hover:text-fuchsia-200"
+              >
+                Forgot password?
+              </Link>
+            </div>
 
             <input
               type="password"
