@@ -20,13 +20,7 @@ export default function SceneTransition({
   children,
 }: SceneTransitionProps) {
   const scenes = Children.toArray(children);
-
   const sectionRef = useRef<HTMLElement>(null);
-
-  /*
-   * -1 means:
-   * keep showing the Hero underneath.
-   */
   const [activeIndex, setActiveIndex] = useState(-1);
 
   useEffect(() => {
@@ -36,61 +30,38 @@ export default function SceneTransition({
       if (!section) return;
 
       const rect = section.getBoundingClientRect();
-
       const distanceIntoSection = Math.max(0, -rect.top);
-
-      const scrollableDistance =
-        section.offsetHeight - window.innerHeight;
-
-      /*
-       * Keep the Hero visible for the beginning
-       * of the experience.
-       */
-      const introDistance =
-        window.innerHeight * INTRO_HOLD;
+      const scrollableDistance = section.offsetHeight - window.innerHeight;
+      const introDistance = window.innerHeight * INTRO_HOLD;
 
       if (distanceIntoSection < introDistance) {
         setActiveIndex(-1);
         return;
       }
 
-      /*
-       * After the Hero hold,
-       * divide the remaining scroll distance
-       * between all venue scenes.
-       */
-      const sceneDistance =
-        scrollableDistance - introDistance;
+      const sceneDistance = scrollableDistance - introDistance;
 
       if (sceneDistance <= 0) return;
 
       const progress = Math.min(
         Math.max(
-          (distanceIntoSection - introDistance) /
-            sceneDistance,
-          0
+          (distanceIntoSection - introDistance) / sceneDistance,
+          0,
         ),
-        0.999999
+        0.999999,
       );
 
       const newIndex = Math.min(
         Math.floor(progress * scenes.length),
-        scenes.length - 1
+        scenes.length - 1,
       );
 
-      setActiveIndex((currentIndex) => {
-        if (currentIndex === newIndex) {
-          return currentIndex;
-        }
-
-        return newIndex;
-      });
+      setActiveIndex((currentIndex) =>
+        currentIndex === newIndex ? currentIndex : newIndex,
+      );
     };
 
-    window.addEventListener("scroll", handleScroll, {
-      passive: true,
-    });
-
+    window.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("resize", handleScroll);
 
     handleScroll();
@@ -103,7 +74,7 @@ export default function SceneTransition({
 
   return (
     <section
-      id = "experience"
+      id="experience"
       ref={sectionRef}
       className="pointer-events-none relative"
       style={{
@@ -111,18 +82,13 @@ export default function SceneTransition({
       }}
     >
       <div
-  className={`sticky top-0 h-screen overflow-hidden ${
-    activeIndex >= 0
-      ? "pointer-events-auto"
-      : "pointer-events-none"
-  }`}
->
-  {/* Prevent the Hero from bleeding through between scenes */}
-  {activeIndex >= 0 && (
-    <div className="absolute inset-0 bg-black" />
-  )}
-
-  <AnimatePresence mode="sync">
+        className={`sticky top-0 h-screen overflow-hidden transition-[z-index] ${
+          activeIndex >= 0
+            ? "pointer-events-auto z-30"
+            : "pointer-events-none z-0"
+        }`}
+      >
+        <AnimatePresence mode="sync">
           {activeIndex >= 0 && (
             <motion.div
               key={`scene-${activeIndex}`}
