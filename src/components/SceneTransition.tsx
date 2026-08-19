@@ -81,7 +81,7 @@ export default function SceneTransition({
     setNextIndex(null);
   };
 
-  const isTransitioning = nextIndex !== null && nextIndex !== activeIndex;
+  const isReturningToHero = nextIndex === -1;
   const currentScene = activeIndex >= 0 ? scenes[activeIndex] : null;
   const incomingIndex =
     nextIndex !== null && nextIndex >= 0 ? nextIndex : null;
@@ -109,7 +109,7 @@ export default function SceneTransition({
             className="absolute inset-0 overflow-hidden"
             initial={false}
             animate={
-              isTransitioning
+              isReturningToHero
                 ? {
                     opacity: 0,
                     scale: 1.06,
