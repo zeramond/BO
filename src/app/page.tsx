@@ -15,7 +15,7 @@ export default function Home() {
             <Hero />
           </div>
 
-          <div className="relative z-10 col-start-1 row-start-1">
+          <div className="pointer-events-none relative z-10 col-start-1 row-start-1">
             <SceneManager />
           </div>
         </section>
