@@ -106,12 +106,12 @@ export default function Contact() {
       });
 
       if (!response.ok) {
-  const result = await response.json();
+        const result = await response.json();
 
-  throw new Error(
-    result.error || "Reservation submission failed"
-  );
-}
+        throw new Error(
+          result.error || "Reservation submission failed"
+        );
+      }
 
       form.reset();
       setSubmitted(true);
@@ -119,13 +119,14 @@ export default function Contact() {
       console.error(error);
       setError(true);
     } finally {
-  setSubmitting(false);
+      setSubmitting(false);
 
-  // Turnstile tokens are single-use.
-  // Generate a fresh token for the next submission attempt.
-  window.turnstile?.reset();
-}
+      // Turnstile tokens are single-use.
+      // Generate a fresh token for the next submission attempt.
+      window.turnstile?.reset();
+    }
   };
+
   return (
     <section
       id="contact"
@@ -135,7 +136,7 @@ export default function Contact() {
         src="https://challenges.cloudflare.com/turnstile/v0/api.js"
         strategy="afterInteractive"
       />
-      {/* BACKGROUND */}
+
       <Image
         src="/images/lanes_wide4.jpg"
         alt="BO Bowling lanes"
@@ -147,11 +148,9 @@ export default function Contact() {
       <div className="absolute inset-0 bg-black/75" />
       <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/65 to-black/40" />
 
-      {/* AMBIENT GLOW */}
       <div className="pointer-events-none absolute -left-40 top-1/3 h-[600px] w-[600px] rounded-full bg-fuchsia-600/10 blur-[160px]" />
 
       <div className="relative z-10 mx-auto grid min-h-[75vh] max-w-7xl items-center gap-16 lg:grid-cols-[1fr_0.9fr]">
-        {/* LEFT SIDE */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -186,8 +185,8 @@ export default function Contact() {
           </a>
         </motion.div>
 
-        {/* RESERVATION FORM */}
         <motion.div
+          id="reservation-form"
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
@@ -196,7 +195,7 @@ export default function Contact() {
             delay: 0.15,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className="rounded-[28px] border border-white/10 bg-black/45 p-6 shadow-2xl backdrop-blur-xl sm:p-8"
+          className="scroll-mt-28 rounded-[28px] border border-white/10 bg-black/45 p-6 shadow-2xl backdrop-blur-xl sm:p-8"
         >
           <div className="mb-8">
             <p className="text-xs uppercase tracking-[0.4em] text-gray-500">
@@ -209,32 +208,24 @@ export default function Contact() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* BOT HONEYPOT — real users never see this */}
-<div
-  aria-hidden="true"
-  className="absolute -left-[9999px] h-px w-px overflow-hidden"
->
-  <label htmlFor="website">
-    Website
-  </label>
+            <div
+              aria-hidden="true"
+              className="absolute -left-[9999px] h-px w-px overflow-hidden"
+            >
+              <label htmlFor="website">Website</label>
+              <input
+                id="website"
+                name="website"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+              />
+            </div>
 
-  <input
-    id="website"
-    name="website"
-    type="text"
-    tabIndex={-1}
-    autoComplete="off"
-  />
-</div>
-            {/* NAME */}
             <div>
-              <label
-                htmlFor="name"
-                className="mb-2 block text-sm text-gray-300"
-              >
+              <label htmlFor="name" className="mb-2 block text-sm text-gray-300">
                 Full Name
               </label>
-
               <input
                 id="name"
                 name="name"
@@ -245,15 +236,10 @@ export default function Contact() {
               />
             </div>
 
-            {/* PHONE */}
             <div>
-              <label
-                htmlFor="phone"
-                className="mb-2 block text-sm text-gray-300"
-              >
+              <label htmlFor="phone" className="mb-2 block text-sm text-gray-300">
                 Phone Number
               </label>
-
               <input
                 id="phone"
                 name="phone"
@@ -264,16 +250,11 @@ export default function Contact() {
               />
             </div>
 
-            {/* DATE + TIME */}
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
-                <label
-                  htmlFor="date"
-                  className="mb-2 block text-sm text-gray-300"
-                >
+                <label htmlFor="date" className="mb-2 block text-sm text-gray-300">
                   Preferred Date
                 </label>
-
                 <input
                   id="date"
                   name="date"
@@ -285,13 +266,9 @@ export default function Contact() {
               </div>
 
               <div>
-                <label
-                  htmlFor="time"
-                  className="mb-2 block text-sm text-gray-300"
-                >
+                <label htmlFor="time" className="mb-2 block text-sm text-gray-300">
                   Preferred Time
                 </label>
-
                 <select
                   id="time"
                   name="time"
@@ -302,7 +279,6 @@ export default function Contact() {
                   <option value="" disabled>
                     Select a time
                   </option>
-
                   {reservationTimes.map((time) => (
                     <option key={time} value={time}>
                       {time}
@@ -312,16 +288,11 @@ export default function Contact() {
               </div>
             </div>
 
-            {/* GUESTS + DURATION */}
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
-                <label
-                  htmlFor="guests"
-                  className="mb-2 block text-sm text-gray-300"
-                >
+                <label htmlFor="guests" className="mb-2 block text-sm text-gray-300">
                   Number of Guests
                 </label>
-
                 <input
                   id="guests"
                   name="guests"
@@ -335,13 +306,9 @@ export default function Contact() {
               </div>
 
               <div>
-                <label
-                  htmlFor="duration"
-                  className="mb-2 block text-sm text-gray-300"
-                >
+                <label htmlFor="duration" className="mb-2 block text-sm text-gray-300">
                   Reservation Duration
                 </label>
-
                 <select
                   id="duration"
                   name="duration"
@@ -358,15 +325,10 @@ export default function Contact() {
               </div>
             </div>
 
-            {/* OCCASION */}
             <div>
-              <label
-                htmlFor="occasion"
-                className="mb-2 block text-sm text-gray-300"
-              >
+              <label htmlFor="occasion" className="mb-2 block text-sm text-gray-300">
                 Occasion
               </label>
-
               <select
                 id="occasion"
                 name="occasion"
@@ -382,15 +344,10 @@ export default function Contact() {
               </select>
             </div>
 
-            {/* NOTES */}
             <div>
-              <label
-                htmlFor="notes"
-                className="mb-2 block text-sm text-gray-300"
-              >
+              <label htmlFor="notes" className="mb-2 block text-sm text-gray-300">
                 Additional Notes
               </label>
-
               <textarea
                 id="notes"
                 name="notes"
@@ -399,7 +356,7 @@ export default function Contact() {
                 className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3.5 text-white outline-none transition placeholder:text-gray-600 focus:border-fuchsia-400/60 focus:bg-white/[0.09]"
               />
             </div>
-            {/* SPAM PROTECTION */}
+
             <div className="flex justify-center py-2">
               <div
                 className="cf-turnstile"
@@ -408,6 +365,7 @@ export default function Contact() {
                 data-size="flexible"
               />
             </div>
+
             <button
               type="submit"
               disabled={submitting}
@@ -419,7 +377,7 @@ export default function Contact() {
               </p>
               {submitting ? "Sending Request..." : "Request Pricing & Availability"}
             </button>
-            
+
             {submitted && (
               <div className="rounded-xl border border-green-400/20 bg-green-400/10 px-4 py-3 text-center text-sm text-green-300">
                 ✓ Reservation request sent. Our team will contact you to confirm
