@@ -3,8 +3,27 @@ import Hero from "@/components/Hero";
 import SceneManager from "@/components/SceneManager";
 import Gallery from "@/components/Gallery";
 import Contact from "@/components/Contact";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const requestHeaders = await headers();
+  const hostname = (
+    requestHeaders.get("x-forwarded-host") ??
+    requestHeaders.get("host") ??
+    ""
+  )
+    .split(",")[0]
+    .trim()
+    .split(":")[0]
+    .toLowerCase();
+
+  if (hostname === "admin.bobowlingom.com") {
+    redirect("/admin/reservations");
+  }
+
   return (
     <>
       <Navbar />
